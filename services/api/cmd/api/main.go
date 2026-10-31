@@ -26,7 +26,7 @@ func main() {
 	clusters.NewHandler(clusterService).Register(mux)
 
 	addr := ":" + port()
-	server := &http.Server{Addr: addr, Handler: mux}
+	server := &http.Server{Addr: addr, Handler: withCORS(mux)}
 
 	go func() {
 		<-ctx.Done()
@@ -53,6 +53,26 @@ func refreshClustersPeriodically(ctx context.Context, service *clusters.Service)
 			service.RefreshAll(ctx)
 		}
 	}
+}
+
+// withCORS allows the frontend dev server (a different origin/port than the
+// API) to call these endpoints. No cookies/credentials are used, so
+// reflecting the request's Origin is safe without Allow-Credentials.
+func withCORS(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if origin := r.Header.Get("Origin"); origin != "" {
+			w.Header().Set("Access-Control-Allow-Origin", origin)
+			w.Header().Set("Vary", "Origin")
+		}
+		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, DELETE, OPTIONS")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+
+		if r.Method == http.MethodOptions {
+			w.WriteHeader(http.StatusNoContent)
+			return
+		}
+		next.ServeHTTP(w, r)
+	})
 }
 
 func port() string {
