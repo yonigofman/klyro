@@ -27,7 +27,7 @@ Three reinforcing claims, all held simultaneously:
 
 ## Operating Context
 
-Operators connect one or more independent Kubernetes clusters (different contexts/versions) and work across namespace-scoped resources: pods, deployments, statefulsets, daemonsets, services, ingresses/routes, nodes, events. Live resource state matters — watches/SSE drive real-time updates rather than polling. Phase 2+ adds direct resource mutation (create/edit/delete, YAML editing, logs, exec/terminal, scaling, restarts), so authorization and RBAC are operationally load-bearing, not cosmetic.
+Operators connect one or more independent Kubernetes clusters (different contexts/versions) and work across namespace-scoped resources (pods, deployments, statefulsets, daemonsets, services, ingresses/routes, events) and cluster-scoped resources (nodes). Live resource state matters — watches/SSE drive real-time updates rather than polling. Phase 2+ adds direct resource mutation (create/edit/delete, YAML editing, logs, exec/terminal, scaling, restarts), so authorization and RBAC are operationally load-bearing, not cosmetic.
 
 ## Capabilities and Constraints
 
