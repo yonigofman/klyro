@@ -84,7 +84,9 @@ export function ClusterRoster({ clusters }: { clusters: Cluster[] }) {
                 </FlipValue>
               </td>
               <td className="py-2 font-mono text-sm tabular-nums text-muted-foreground">
-                {formatLastSeen(cluster.lastSeen)}
+                <FlipValue watch={cluster.lastSeen ?? ''} enterDelayMs={enterDelayMs}>
+                  {formatLastSeen(cluster.lastSeen)}
+                </FlipValue>
               </td>
               <td className="py-2 text-sm text-muted-foreground">
                 <FlipValue watch={cluster.connectionStatus} enterDelayMs={enterDelayMs}>

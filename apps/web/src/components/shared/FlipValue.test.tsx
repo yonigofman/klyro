@@ -26,4 +26,21 @@ describe('FlipValue', () => {
 
     expect(screen.getByText('Healthy')).toBe(firstNode)
   })
+
+  it('applies enterDelayMs only to the entrance flip, not later re-flips', () => {
+    const { rerender } = render(
+      <FlipValue watch="green" enterDelayMs={320}>
+        Healthy
+      </FlipValue>,
+    )
+    expect(screen.getByText('Healthy')).toHaveStyle({ animationDelay: '320ms' })
+
+    rerender(
+      <FlipValue watch="red" enterDelayMs={320}>
+        Down
+      </FlipValue>,
+    )
+
+    expect(screen.getByText('Down')).not.toHaveStyle({ animationDelay: '320ms' })
+  })
 })

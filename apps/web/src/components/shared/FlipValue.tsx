@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useState } from 'react'
 import type { ReactNode } from 'react'
 import { cn } from '#/lib/utils'
 
@@ -24,25 +24,28 @@ export function FlipValue({
   watch: string | number | boolean
   children: ReactNode
   className?: string
-  /** Staggers the entrance flip (e.g. row index * 40ms) — ignored on
-   * later re-flips triggered by `watch` changing. */
+  /** Staggers only the entrance flip (e.g. row index * 40ms) — never
+   * applied to a later re-flip triggered by `watch` changing. */
   enterDelayMs?: number
 }) {
+  // React's documented "adjust state during render" pattern: comparing and
+  // updating here (not in a useEffect) means the remount happens in the
+  // same render as the content change, so there's no in-between frame
+  // where the new content is visible but the flip hasn't started yet.
+  const [prevWatch, setPrevWatch] = useState(watch)
   const [flipKey, setFlipKey] = useState(0)
-  const prevWatch = useRef(watch)
+  if (prevWatch !== watch) {
+    setPrevWatch(watch)
+    setFlipKey((k) => k + 1)
+  }
 
-  useEffect(() => {
-    if (prevWatch.current !== watch) {
-      prevWatch.current = watch
-      setFlipKey((k) => k + 1)
-    }
-  }, [watch])
+  const isEntrance = flipKey === 0
 
   return (
     <span
       key={flipKey}
       className={cn('inline-block animate-flip-reveal', className)}
-      style={enterDelayMs ? { animationDelay: `${enterDelayMs}ms` } : undefined}
+      style={isEntrance && enterDelayMs ? { animationDelay: `${enterDelayMs}ms` } : undefined}
     >
       {children}
     </span>

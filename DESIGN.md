@@ -28,9 +28,10 @@ typography:
     fontWeight: 600
     letterSpacing: "-0.025em"
 rounded:
-  sm: "0.25rem"
-  md: "0.3125rem"
+  sm: "0.125rem"
+  md: "0.25rem"
   lg: "0.375rem"
+  xl: "0.625rem"
 spacing:
   sm: "0.5rem"
   md: "1rem"
@@ -118,7 +119,7 @@ Flat by design. No shadows anywhere — depth is conveyed by the near-black-to-p
 
 ## Shapes
 
-Small, consistent corner radius (`0.375rem` on dialogs/inputs/buttons via `--radius`) — enough to feel considered, never "rounded-everything." Tables, rows, and the Manifest code block use square corners and hairline borders instead; a radius marks an interactive control, a hairline marks a division.
+Small, consistent corner radius (`0.25rem` / `rounded-md` on buttons, inputs, and the Manifest code block; `0.375rem` / `rounded-lg` on dialogs) — enough to feel considered, never "rounded-everything." Tables and rows use square corners and hairline borders instead; a radius marks an interactive control or panel, a hairline marks a division.
 
 ## Components
 
