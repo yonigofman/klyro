@@ -64,10 +64,8 @@ func (s *Service) ListNamespaces(ctx context.Context, clusterID string) ([]Names
 // ListPods returns every Pod in the given Cluster, scoped to namespace when
 // it's non-empty, or across all namespaces when it's "".
 func (s *Service) ListPods(ctx context.Context, clusterID, namespace string) ([]PodSummary, error) {
-	if namespace != "" {
-		if errs := validation.IsDNS1123Label(namespace); len(errs) > 0 {
-			return nil, ErrInvalidNamespace
-		}
+	if err := validateNamespace(namespace); err != nil {
+		return nil, err
 	}
 
 	client, err := s.clientFor(clusterID)
@@ -93,6 +91,213 @@ func (s *Service) ListPods(ctx context.Context, clusterID, namespace string) ([]
 		})
 	}
 	return summaries, nil
+}
+
+// ListWorkloads returns every Deployment, StatefulSet, and DaemonSet in the
+// given Cluster as one unified list — Workload is one domain concept (see
+// CONTEXT.md) spanning all three Kubernetes kinds.
+func (s *Service) ListWorkloads(ctx context.Context, clusterID, namespace string) ([]WorkloadSummary, error) {
+	if err := validateNamespace(namespace); err != nil {
+		return nil, err
+	}
+
+	client, err := s.clientFor(clusterID)
+	if err != nil {
+		return nil, err
+	}
+
+	deployments, err := client.ListDeployments(ctx, namespace)
+	if err != nil {
+		return nil, fmt.Errorf("listing deployments: %w", err)
+	}
+	statefulSets, err := client.ListStatefulSets(ctx, namespace)
+	if err != nil {
+		return nil, fmt.Errorf("listing statefulsets: %w", err)
+	}
+	daemonSets, err := client.ListDaemonSets(ctx, namespace)
+	if err != nil {
+		return nil, fmt.Errorf("listing daemonsets: %w", err)
+	}
+
+	summaries := make([]WorkloadSummary, 0, len(deployments)+len(statefulSets)+len(daemonSets))
+	for _, d := range deployments {
+		desired := int32(1)
+		if d.Spec.Replicas != nil {
+			desired = *d.Spec.Replicas
+		}
+		summaries = append(summaries, WorkloadSummary{
+			Kind: WorkloadKindDeployment, Name: d.Name, Namespace: d.Namespace,
+			Desired: desired, Ready: d.Status.ReadyReplicas, CreatedAt: d.CreationTimestamp.Time,
+		})
+	}
+	for _, ss := range statefulSets {
+		desired := int32(1)
+		if ss.Spec.Replicas != nil {
+			desired = *ss.Spec.Replicas
+		}
+		summaries = append(summaries, WorkloadSummary{
+			Kind: WorkloadKindStatefulSet, Name: ss.Name, Namespace: ss.Namespace,
+			Desired: desired, Ready: ss.Status.ReadyReplicas, CreatedAt: ss.CreationTimestamp.Time,
+		})
+	}
+	for _, ds := range daemonSets {
+		summaries = append(summaries, WorkloadSummary{
+			Kind: WorkloadKindDaemonSet, Name: ds.Name, Namespace: ds.Namespace,
+			Desired: ds.Status.DesiredNumberScheduled, Ready: ds.Status.NumberReady, CreatedAt: ds.CreationTimestamp.Time,
+		})
+	}
+	return summaries, nil
+}
+
+// ListServices returns every Service in the given Cluster, scoped to
+// namespace when it's non-empty, or across all namespaces when it's "".
+func (s *Service) ListServices(ctx context.Context, clusterID, namespace string) ([]ServiceSummary, error) {
+	if err := validateNamespace(namespace); err != nil {
+		return nil, err
+	}
+
+	client, err := s.clientFor(clusterID)
+	if err != nil {
+		return nil, err
+	}
+
+	services, err := client.ListServices(ctx, namespace)
+	if err != nil {
+		return nil, fmt.Errorf("listing services: %w", err)
+	}
+
+	summaries := make([]ServiceSummary, 0, len(services))
+	for _, svc := range services {
+		ports := make([]string, 0, len(svc.Spec.Ports))
+		for _, p := range svc.Spec.Ports {
+			ports = append(ports, fmt.Sprintf("%d/%s", p.Port, p.Protocol))
+		}
+		summaries = append(summaries, ServiceSummary{
+			Name:      svc.Name,
+			Namespace: svc.Namespace,
+			Type:      svc.Spec.Type,
+			ClusterIP: svc.Spec.ClusterIP,
+			Ports:     ports,
+			CreatedAt: svc.CreationTimestamp.Time,
+		})
+	}
+	return summaries, nil
+}
+
+// ListIngresses returns every Ingress in the given Cluster, scoped to
+// namespace when it's non-empty, or across all namespaces when it's "".
+func (s *Service) ListIngresses(ctx context.Context, clusterID, namespace string) ([]IngressSummary, error) {
+	if err := validateNamespace(namespace); err != nil {
+		return nil, err
+	}
+
+	client, err := s.clientFor(clusterID)
+	if err != nil {
+		return nil, err
+	}
+
+	ingresses, err := client.ListIngresses(ctx, namespace)
+	if err != nil {
+		return nil, fmt.Errorf("listing ingresses: %w", err)
+	}
+
+	summaries := make([]IngressSummary, 0, len(ingresses))
+	for _, ing := range ingresses {
+		hosts := make([]string, 0, len(ing.Spec.Rules))
+		for _, rule := range ing.Spec.Rules {
+			if rule.Host != "" {
+				hosts = append(hosts, rule.Host)
+			}
+		}
+		summaries = append(summaries, IngressSummary{
+			Name:      ing.Name,
+			Namespace: ing.Namespace,
+			Hosts:     hosts,
+			CreatedAt: ing.CreationTimestamp.Time,
+		})
+	}
+	return summaries, nil
+}
+
+// ListNodes returns every Node in the given Cluster. Nodes are a
+// Cluster-scoped Resource — there is no namespace to filter by.
+func (s *Service) ListNodes(ctx context.Context, clusterID string) ([]NodeSummary, error) {
+	client, err := s.clientFor(clusterID)
+	if err != nil {
+		return nil, err
+	}
+
+	nodes, err := client.ListNodes(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("listing nodes: %w", err)
+	}
+
+	summaries := make([]NodeSummary, 0, len(nodes))
+	for _, node := range nodes {
+		summaries = append(summaries, NodeSummary{
+			Name:              node.Name,
+			Ready:             nodeIsReady(node),
+			KubernetesVersion: node.Status.NodeInfo.KubeletVersion,
+			CreatedAt:         node.CreationTimestamp.Time,
+		})
+	}
+	return summaries, nil
+}
+
+// ListEvents returns every Event in the given Cluster, scoped to namespace
+// when it's non-empty, or across all namespaces when it's "".
+func (s *Service) ListEvents(ctx context.Context, clusterID, namespace string) ([]EventSummary, error) {
+	if err := validateNamespace(namespace); err != nil {
+		return nil, err
+	}
+
+	client, err := s.clientFor(clusterID)
+	if err != nil {
+		return nil, err
+	}
+
+	events, err := client.ListEvents(ctx, namespace)
+	if err != nil {
+		return nil, fmt.Errorf("listing events: %w", err)
+	}
+
+	summaries := make([]EventSummary, 0, len(events))
+	for _, event := range events {
+		lastSeen := event.LastTimestamp.Time
+		if lastSeen.IsZero() {
+			lastSeen = event.EventTime.Time
+		}
+		summaries = append(summaries, EventSummary{
+			Type:               event.Type,
+			Reason:             event.Reason,
+			Message:            event.Message,
+			InvolvedObjectKind: event.InvolvedObject.Kind,
+			InvolvedObjectName: event.InvolvedObject.Name,
+			Namespace:          event.Namespace,
+			Count:              event.Count,
+			LastSeen:           lastSeen,
+		})
+	}
+	return summaries, nil
+}
+
+func validateNamespace(namespace string) error {
+	if namespace == "" {
+		return nil
+	}
+	if errs := validation.IsDNS1123Label(namespace); len(errs) > 0 {
+		return ErrInvalidNamespace
+	}
+	return nil
+}
+
+func nodeIsReady(node corev1.Node) bool {
+	for _, condition := range node.Status.Conditions {
+		if condition.Type == corev1.NodeReady {
+			return condition.Status == corev1.ConditionTrue
+		}
+	}
+	return false
 }
 
 func (s *Service) clientFor(clusterID string) (*kube.Client, error) {

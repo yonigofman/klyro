@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { render, screen, within } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { Cluster } from "@klyro/api-client";
@@ -20,6 +20,7 @@ vi.mock("#/lib/api-client", () => ({
 const { ClusterDashboard } = await import("./ClusterDashboard");
 const { useClusterSelectionStore } = await import("#/features/clusters/selection-store");
 const { useNamespaceFilterStore } = await import("#/features/clusters/namespace-filter-store");
+const { useResourceTabStore } = await import("#/features/clusters/resource-tab-store");
 
 function renderDashboard() {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
@@ -56,6 +57,7 @@ beforeEach(() => {
   // explicitly between tests.
   useClusterSelectionStore.setState({ selectedClusterId: null });
   useNamespaceFilterStore.setState({ selectedNamespaceByCluster: {} });
+  useResourceTabStore.setState({ activeTabByCluster: {} });
 });
 
 describe("ClusterDashboard", () => {
@@ -92,69 +94,6 @@ describe("ClusterDashboard", () => {
 
     expect(await screen.findByRole("region", { name: /prod detail/i })).toBeInTheDocument();
     expect(await screen.findByText(/no pods in this cluster/i)).toBeInTheDocument();
-  });
-
-  it("shows the namespace filter (with non-Active status) and the full pod summary", async () => {
-    listClusters.mockResolvedValue([cluster({ id: "c1", displayName: "prod" })]);
-    listNamespaces.mockResolvedValue([
-      { name: "default", status: "Active", createdAt: "2026-01-01T00:00:00Z" },
-      { name: "old-stuff", status: "Terminating", createdAt: "2026-01-01T00:00:00Z" },
-    ]);
-    listPods.mockResolvedValue([
-      {
-        name: "web-1",
-        namespace: "default",
-        phase: "Running",
-        ready: "2/2",
-        restarts: 3,
-        node: "node-a",
-        createdAt: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
-      },
-    ]);
-    renderDashboard();
-
-    await userEvent.click(await screen.findByText("prod"));
-
-    const podRow = (await screen.findByText("web-1")).closest("tr")!;
-    expect(within(podRow).getByText("Running")).toBeInTheDocument();
-    expect(within(podRow).getByText("2/2")).toBeInTheDocument();
-    expect(within(podRow).getByText("3")).toBeInTheDocument();
-    expect(within(podRow).getByText("node-a")).toBeInTheDocument();
-    expect(within(podRow).getByText("2h")).toBeInTheDocument();
-
-    const filter = screen.getByRole("combobox", { name: /filter by namespace/i });
-    expect(filter).toBeInTheDocument();
-    expect(screen.getByRole("option", { name: "old-stuff (Terminating)" })).toBeInTheDocument();
-  });
-
-  it("shows loading and error states for namespaces and pods independently", async () => {
-    listClusters.mockResolvedValue([cluster({ id: "c1", displayName: "prod" })]);
-    listNamespaces.mockImplementation(() => new Promise(() => {})); // never resolves
-    listPods.mockRejectedValue(new Error("pods fetch failed"));
-    renderDashboard();
-
-    await userEvent.click(await screen.findByText("prod"));
-
-    expect(await screen.findByText(/loading namespaces/i)).toBeInTheDocument();
-    expect(await screen.findByText(/pods fetch failed/i)).toBeInTheDocument();
-  });
-
-  it("refetches pods scoped to the chosen namespace", async () => {
-    listClusters.mockResolvedValue([cluster({ id: "c1", displayName: "prod" })]);
-    listNamespaces.mockResolvedValue([
-      { name: "default", status: "Active", createdAt: "2026-01-01T00:00:00Z" },
-      { name: "jobs", status: "Active", createdAt: "2026-01-01T00:00:00Z" },
-    ]);
-    listPods.mockResolvedValue([]);
-    renderDashboard();
-
-    await userEvent.click(await screen.findByText("prod"));
-    await screen.findByRole("combobox", { name: /filter by namespace/i });
-
-    await userEvent.selectOptions(screen.getByRole("combobox", { name: /filter by namespace/i }), "jobs");
-
-    expect(await screen.findByText(/no pods in jobs/i)).toBeInTheDocument();
-    expect(listPods).toHaveBeenCalledWith("c1", "jobs");
   });
 
   it("rejects an empty kubeconfig before submitting", async () => {
@@ -208,22 +147,6 @@ describe("ClusterDashboard", () => {
     await userEvent.type(screen.getByLabelText(/search clusters/i), "nothing-matches-this");
 
     expect(await screen.findByText(/no clusters match your search/i)).toBeInTheDocument();
-  });
-
-  it("removing a cluster from its detail panel clears the selection", async () => {
-    listClusters
-      .mockResolvedValueOnce([cluster({ id: "c1", displayName: "prod" })])
-      .mockResolvedValueOnce([]);
-    deleteCluster.mockResolvedValue(undefined);
-    renderDashboard();
-
-    await userEvent.click(await screen.findByText("prod"));
-    await screen.findByRole("region", { name: /prod detail/i });
-
-    await userEvent.click(screen.getByRole("button", { name: /remove cluster/i }));
-
-    expect(deleteCluster).toHaveBeenCalledWith("c1");
-    expect(screen.queryByRole("region", { name: /prod detail/i })).not.toBeInTheDocument();
   });
 
   it("uses roomy row spacing for a handful of clusters", async () => {

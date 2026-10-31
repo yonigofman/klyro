@@ -9,6 +9,7 @@ import (
 
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	networkingv1 "k8s.io/api/networking/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/version"
 	discoveryfake "k8s.io/client-go/discovery/fake"
@@ -52,11 +53,68 @@ func Node(name string, ready bool) *corev1.Node {
 }
 
 // Deployment builds a fake Deployment with the given desired/ready replicas.
-func Deployment(name string, desired, ready int32) *appsv1.Deployment {
+func Deployment(name, namespace string, desired, ready int32) *appsv1.Deployment {
 	return &appsv1.Deployment{
-		ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: "default"},
+		ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: namespace},
 		Spec:       appsv1.DeploymentSpec{Replicas: &desired},
 		Status:     appsv1.DeploymentStatus{ReadyReplicas: ready},
+	}
+}
+
+// StatefulSet builds a fake StatefulSet with the given desired/ready replicas.
+func StatefulSet(name, namespace string, desired, ready int32) *appsv1.StatefulSet {
+	return &appsv1.StatefulSet{
+		ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: namespace},
+		Spec:       appsv1.StatefulSetSpec{Replicas: &desired},
+		Status:     appsv1.StatefulSetStatus{ReadyReplicas: ready},
+	}
+}
+
+// DaemonSet builds a fake DaemonSet with the given desired/ready counts.
+func DaemonSet(name, namespace string, desired, ready int32) *appsv1.DaemonSet {
+	return &appsv1.DaemonSet{
+		ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: namespace},
+		Status: appsv1.DaemonSetStatus{
+			DesiredNumberScheduled: desired,
+			NumberReady:            ready,
+		},
+	}
+}
+
+// Service builds a fake Service with the given type, cluster IP, and ports.
+func Service(name, namespace string, svcType corev1.ServiceType, clusterIP string, ports ...int32) *corev1.Service {
+	svcPorts := make([]corev1.ServicePort, len(ports))
+	for i, p := range ports {
+		svcPorts[i] = corev1.ServicePort{Port: p, Protocol: corev1.ProtocolTCP}
+	}
+	return &corev1.Service{
+		ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: namespace},
+		Spec:       corev1.ServiceSpec{Type: svcType, ClusterIP: clusterIP, Ports: svcPorts},
+	}
+}
+
+// Ingress builds a fake Ingress routing the given hosts.
+func Ingress(name, namespace string, hosts ...string) *networkingv1.Ingress {
+	rules := make([]networkingv1.IngressRule, len(hosts))
+	for i, host := range hosts {
+		rules[i] = networkingv1.IngressRule{Host: host}
+	}
+	return &networkingv1.Ingress{
+		ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: namespace},
+		Spec:       networkingv1.IngressSpec{Rules: rules},
+	}
+}
+
+// Event builds a fake Event about the given involved object.
+func Event(name, namespace, eventType, reason, message, involvedKind, involvedName string, count int32) *corev1.Event {
+	return &corev1.Event{
+		ObjectMeta:     metav1.ObjectMeta{Name: name, Namespace: namespace},
+		Type:           eventType,
+		Reason:         reason,
+		Message:        message,
+		Count:          count,
+		InvolvedObject: corev1.ObjectReference{Kind: involvedKind, Name: involvedName},
+		LastTimestamp:  metav1.Now(),
 	}
 }
 

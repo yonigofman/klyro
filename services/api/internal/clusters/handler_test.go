@@ -95,7 +95,7 @@ func TestRegister_HealthyClusterIsGreen(t *testing.T) {
 	cs := fakeclient.NewSimpleClientset(
 		node("node-a", true),
 		node("node-b", true),
-		deployment("web", 2, 2),
+		deployment("web", "default", 2, 2),
 		pod("web-abc12", "default", "node-a", 1, 1, 0),
 		pod("web-def34", "default", "node-a", 1, 1, 0),
 	)
@@ -170,7 +170,7 @@ func TestRegister_DegradedButNothingDownIsAmber(t *testing.T) {
 	cs := fakeclient.NewSimpleClientset(
 		node("node-a", true),
 		node("node-b", false), // 1 of 2 NotReady: not a majority
-		deployment("web", 3, 2),
+		deployment("web", "default", 3, 2),
 	)
 	setFakedServerVersion(cs, "v1.30.1")
 	srv := newTestServer(cs)
@@ -185,7 +185,7 @@ func TestRegister_DegradedButNothingDownIsAmber(t *testing.T) {
 func TestRegister_WorkloadAtZeroReadyIsRed(t *testing.T) {
 	cs := fakeclient.NewSimpleClientset(
 		node("node-a", true),
-		deployment("web", 2, 0),
+		deployment("web", "default", 2, 0),
 	)
 	setFakedServerVersion(cs, "v1.30.1")
 	srv := newTestServer(cs)

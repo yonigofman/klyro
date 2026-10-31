@@ -1,4 +1,12 @@
-import type { NamespaceSummary, PodSummary } from "./resources";
+import type {
+  EventSummary,
+  IngressSummary,
+  NamespaceSummary,
+  NodeSummary,
+  PodSummary,
+  ServiceSummary,
+  WorkloadSummary,
+} from "./resources";
 
 export type ConnectionStatus = "connected" | "unreachable";
 export type Health = "green" | "amber" | "red";
@@ -47,6 +55,16 @@ export interface ApiClient {
   listNamespaces(clusterId: string): Promise<NamespaceSummary[]>;
   /** namespace omitted or "" lists Pods across all namespaces. */
   listPods(clusterId: string, namespace?: string): Promise<PodSummary[]>;
+  /** namespace omitted or "" lists Workloads across all namespaces. */
+  listWorkloads(clusterId: string, namespace?: string): Promise<WorkloadSummary[]>;
+  /** namespace omitted or "" lists Services across all namespaces. */
+  listServices(clusterId: string, namespace?: string): Promise<ServiceSummary[]>;
+  /** namespace omitted or "" lists Ingresses across all namespaces. */
+  listIngresses(clusterId: string, namespace?: string): Promise<IngressSummary[]>;
+  /** Nodes are Cluster-scoped — there is no namespace to filter by. */
+  listNodes(clusterId: string): Promise<NodeSummary[]>;
+  /** namespace omitted or "" lists Events across all namespaces. */
+  listEvents(clusterId: string, namespace?: string): Promise<EventSummary[]>;
 }
 
 export function createApiClient(options: ApiClientOptions): ApiClient {
@@ -74,6 +92,10 @@ export function createApiClient(options: ApiClientOptions): ApiClient {
     return (await response.json()) as T;
   }
 
+  function namespaceQuery(namespace?: string): string {
+    return namespace ? `?namespace=${encodeURIComponent(namespace)}` : "";
+  }
+
   return {
     listClusters: () => request<Cluster[]>("/api/v1/clusters"),
     getCluster: (id) => request<Cluster>(`/api/v1/clusters/${encodeURIComponent(id)}`),
@@ -88,9 +110,24 @@ export function createApiClient(options: ApiClientOptions): ApiClient {
       }),
     listNamespaces: (clusterId) =>
       request<NamespaceSummary[]>(`/api/v1/clusters/${encodeURIComponent(clusterId)}/namespaces`),
-    listPods: (clusterId, namespace) => {
-      const query = namespace ? `?namespace=${encodeURIComponent(namespace)}` : "";
-      return request<PodSummary[]>(`/api/v1/clusters/${encodeURIComponent(clusterId)}/pods${query}`);
-    },
+    listPods: (clusterId, namespace) =>
+      request<PodSummary[]>(`/api/v1/clusters/${encodeURIComponent(clusterId)}/pods${namespaceQuery(namespace)}`),
+    listWorkloads: (clusterId, namespace) =>
+      request<WorkloadSummary[]>(
+        `/api/v1/clusters/${encodeURIComponent(clusterId)}/workloads${namespaceQuery(namespace)}`,
+      ),
+    listServices: (clusterId, namespace) =>
+      request<ServiceSummary[]>(
+        `/api/v1/clusters/${encodeURIComponent(clusterId)}/services${namespaceQuery(namespace)}`,
+      ),
+    listIngresses: (clusterId, namespace) =>
+      request<IngressSummary[]>(
+        `/api/v1/clusters/${encodeURIComponent(clusterId)}/ingresses${namespaceQuery(namespace)}`,
+      ),
+    listNodes: (clusterId) => request<NodeSummary[]>(`/api/v1/clusters/${encodeURIComponent(clusterId)}/nodes`),
+    listEvents: (clusterId, namespace) =>
+      request<EventSummary[]>(
+        `/api/v1/clusters/${encodeURIComponent(clusterId)}/events${namespaceQuery(namespace)}`,
+      ),
   };
 }

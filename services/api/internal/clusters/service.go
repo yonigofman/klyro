@@ -143,15 +143,15 @@ func probe(ctx context.Context, client *kube.Client) probeResult {
 	if err != nil {
 		return probeResult{connectionStatus: ConnectionStatusConnected, health: HealthRed, kubernetesVersion: version, seenNow: true}
 	}
-	deployments, err := client.ListDeployments(ctx)
+	deployments, err := client.ListDeployments(ctx, "")
 	if err != nil {
 		return probeResult{connectionStatus: ConnectionStatusConnected, health: HealthRed, kubernetesVersion: version, nodeCount: len(nodes), seenNow: true}
 	}
-	statefulSets, err := client.ListStatefulSets(ctx)
+	statefulSets, err := client.ListStatefulSets(ctx, "")
 	if err != nil {
 		return probeResult{connectionStatus: ConnectionStatusConnected, health: HealthRed, kubernetesVersion: version, nodeCount: len(nodes), seenNow: true}
 	}
-	daemonSets, err := client.ListDaemonSets(ctx)
+	daemonSets, err := client.ListDaemonSets(ctx, "")
 	if err != nil {
 		return probeResult{connectionStatus: ConnectionStatusConnected, health: HealthRed, kubernetesVersion: version, nodeCount: len(nodes), seenNow: true}
 	}
