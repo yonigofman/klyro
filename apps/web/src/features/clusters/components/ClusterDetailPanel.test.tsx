@@ -289,4 +289,105 @@ describe('ClusterDetailPanel', () => {
     expect(await screen.findByText(/no workloads in jobs/i)).toBeInTheDocument()
     expect(listWorkloads).toHaveBeenCalledWith('c1', 'jobs')
   })
+
+  it('shows loading and error states on the Workloads tab independently of Pods', async () => {
+    listWorkloads.mockImplementation(() => new Promise(() => {}))
+    renderPanel(cluster())
+
+    await userEvent.click(await screen.findByRole('tab', { name: 'Workloads' }))
+
+    expect(
+      await screen.findByRole('status', { name: /loading workloads/i }),
+    ).toBeInTheDocument()
+  })
+
+  it('shows loading and error states on the Services tab independently of Pods', async () => {
+    listServices.mockRejectedValue(new Error('services fetch failed'))
+    renderPanel(cluster())
+
+    await userEvent.click(await screen.findByRole('tab', { name: 'Services' }))
+
+    expect(await screen.findByText(/services fetch failed/i)).toBeInTheDocument()
+  })
+
+  it('shows loading and error states on the Ingresses tab independently of Pods', async () => {
+    listIngresses.mockRejectedValue(new Error('ingresses fetch failed'))
+    renderPanel(cluster())
+
+    await userEvent.click(await screen.findByRole('tab', { name: 'Ingresses' }))
+
+    expect(await screen.findByText(/ingresses fetch failed/i)).toBeInTheDocument()
+  })
+
+  it('shows loading and error states on the Nodes tab independently of Pods', async () => {
+    listNodes.mockRejectedValue(new Error('nodes fetch failed'))
+    renderPanel(cluster())
+
+    await userEvent.click(await screen.findByRole('tab', { name: 'Nodes' }))
+
+    expect(await screen.findByText(/nodes fetch failed/i)).toBeInTheDocument()
+  })
+
+  it('shows loading and error states on the Events tab independently of Pods', async () => {
+    listEvents.mockRejectedValue(new Error('events fetch failed'))
+    renderPanel(cluster())
+
+    await userEvent.click(await screen.findByRole('tab', { name: 'Events' }))
+
+    expect(await screen.findByText(/events fetch failed/i)).toBeInTheDocument()
+  })
+
+  it('applies the same namespace filter to Services as it does to Pods', async () => {
+    listNamespaces.mockResolvedValue([
+      { name: 'default', status: 'Active', createdAt: '2026-01-01T00:00:00Z' },
+      { name: 'jobs', status: 'Active', createdAt: '2026-01-01T00:00:00Z' },
+    ])
+    renderPanel(cluster())
+
+    await screen.findByRole('combobox', { name: /filter by namespace/i })
+    await userEvent.selectOptions(
+      screen.getByRole('combobox', { name: /filter by namespace/i }),
+      'jobs',
+    )
+    await userEvent.click(screen.getByRole('tab', { name: 'Services' }))
+
+    expect(await screen.findByText(/no services in jobs/i)).toBeInTheDocument()
+    expect(listServices).toHaveBeenCalledWith('c1', 'jobs')
+  })
+
+  it('applies the same namespace filter to Ingresses as it does to Pods', async () => {
+    listNamespaces.mockResolvedValue([
+      { name: 'default', status: 'Active', createdAt: '2026-01-01T00:00:00Z' },
+      { name: 'jobs', status: 'Active', createdAt: '2026-01-01T00:00:00Z' },
+    ])
+    renderPanel(cluster())
+
+    await screen.findByRole('combobox', { name: /filter by namespace/i })
+    await userEvent.selectOptions(
+      screen.getByRole('combobox', { name: /filter by namespace/i }),
+      'jobs',
+    )
+    await userEvent.click(screen.getByRole('tab', { name: 'Ingresses' }))
+
+    expect(await screen.findByText(/no ingresses in jobs/i)).toBeInTheDocument()
+    expect(listIngresses).toHaveBeenCalledWith('c1', 'jobs')
+  })
+
+  it('applies the same namespace filter to Events as it does to Pods', async () => {
+    listNamespaces.mockResolvedValue([
+      { name: 'default', status: 'Active', createdAt: '2026-01-01T00:00:00Z' },
+      { name: 'jobs', status: 'Active', createdAt: '2026-01-01T00:00:00Z' },
+    ])
+    renderPanel(cluster())
+
+    await screen.findByRole('combobox', { name: /filter by namespace/i })
+    await userEvent.selectOptions(
+      screen.getByRole('combobox', { name: /filter by namespace/i }),
+      'jobs',
+    )
+    await userEvent.click(screen.getByRole('tab', { name: 'Events' }))
+
+    expect(await screen.findByText(/no events in jobs/i)).toBeInTheDocument()
+    expect(listEvents).toHaveBeenCalledWith('c1', 'jobs')
+  })
 })
