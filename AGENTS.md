@@ -8,6 +8,11 @@
 
 It provides a centralized interface for exploring, monitoring, and managing Kubernetes resources across multiple independent clusters.
 
+### Product & Design Context
+
+- Durable product truth (users, positioning, constraints, evidence) lives in `PRODUCT.md` — read it alongside this file before product or design decisions.
+- Confirmed surface shapes/direction contracts live under `.impeccable/surfaces/`. The **cluster overview dashboard** has a confirmed brief and direction there (`cluster-overview-dashboard.md`, airport departure/gate-board world) — don't re-shape it from scratch; build or extend against that brief.
+
 ### Core Principles
 
 - **Modern UX:** A polished, intuitive interface inspired by Linear, Vercel, and Grafana.
