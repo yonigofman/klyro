@@ -3,6 +3,8 @@ import { QueryState } from '#/components/shared/QueryState'
 import { ResourceDetailLayout, DetailSection } from '#/components/shared/ResourceDetailLayout'
 import { ManifestSection } from '#/components/shared/ManifestSection'
 import { ResourceEventsSection } from '#/components/shared/ResourceEventsSection'
+import { Dot } from '#/components/shared/Dot'
+import { conditionHealth, readyHealth } from '#/features/clusters/health'
 import { useNodeDetail, useNodeManifest } from '#/features/clusters/queries'
 
 export const Route = createFileRoute('/clusters/$clusterId/nodes/$name')({
@@ -28,12 +30,16 @@ export function NodeDetailPage({ clusterId, name }: { clusterId: string; name: s
           createdAt={node.createdAt}
           backHref="/"
           clusterId={clusterId}
+          health={readyHealth(node.ready)}
         >
           <DetailSection title="Overview">
             <dl className="grid grid-cols-2 gap-2 font-mono text-sm sm:grid-cols-4">
               <div>
                 <dt className="text-xs uppercase text-muted-foreground">Ready</dt>
-                <dd className="text-foreground">{node.ready ? 'Ready' : 'Not Ready'}</dd>
+                <dd className="inline-flex items-center gap-2 text-foreground">
+                  <Dot health={readyHealth(node.ready)} />
+                  {node.ready ? 'Ready' : 'Not Ready'}
+                </dd>
               </div>
               <div>
                 <dt className="text-xs uppercase text-muted-foreground">Version</dt>
@@ -59,9 +65,10 @@ export function NodeDetailPage({ clusterId, name }: { clusterId: string; name: s
             {node.conditions.length === 0 ? (
               <p className="text-sm text-muted-foreground">No conditions reported.</p>
             ) : (
-              <ul className="flex flex-col gap-1 font-mono text-sm text-muted-foreground">
+              <ul className="flex flex-col gap-1.5 font-mono text-sm text-muted-foreground">
                 {node.conditions.map((condition) => (
-                  <li key={condition.type}>
+                  <li key={condition.type} className="inline-flex items-center gap-2">
+                    <Dot health={conditionHealth(condition.type, condition.status)} />
                     {condition.type}: {condition.status}
                   </li>
                 ))}

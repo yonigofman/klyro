@@ -4,6 +4,9 @@ import { QueryState } from '#/components/shared/QueryState'
 import { ResourceDetailLayout, DetailSection } from '#/components/shared/ResourceDetailLayout'
 import { ManifestSection } from '#/components/shared/ManifestSection'
 import { ResourceEventsSection } from '#/components/shared/ResourceEventsSection'
+import { Dot } from '#/components/shared/Dot'
+import { rolloutHealth, healthTextClassName } from '#/features/clusters/health'
+import { cn } from '#/lib/utils'
 import { useWorkloadDetail, useWorkloadManifest } from '#/features/clusters/queries'
 
 export const Route = createFileRoute(
@@ -34,7 +37,9 @@ export function WorkloadDetailPage({
       loadingLabel="Loading workload…"
       notFoundLabel="This workload no longer exists."
     >
-      {(workload) => (
+      {(workload) => {
+        const health = rolloutHealth(workload.ready, workload.desired)
+        return (
         <ResourceDetailLayout
           kind={workload.kind}
           name={workload.name}
@@ -42,6 +47,7 @@ export function WorkloadDetailPage({
           createdAt={workload.createdAt}
           backHref="/"
           clusterId={clusterId}
+          health={health}
         >
           <DetailSection title="Rollout">
             <dl className="grid grid-cols-2 gap-2 font-mono text-sm text-muted-foreground sm:grid-cols-4">
@@ -51,7 +57,10 @@ export function WorkloadDetailPage({
               </div>
               <div>
                 <dt className="text-xs uppercase text-muted-foreground">Ready</dt>
-                <dd className="tabular-nums text-foreground">{workload.ready}</dd>
+                <dd className={cn('inline-flex items-center gap-2 tabular-nums', healthTextClassName[health])}>
+                  <Dot health={health} />
+                  {workload.ready}
+                </dd>
               </div>
               <div>
                 <dt className="text-xs uppercase text-muted-foreground">Update strategy</dt>
@@ -93,7 +102,8 @@ export function WorkloadDetailPage({
             useManifest={(enabled) => useWorkloadManifest(clusterId, namespace, kind, name, enabled)}
           />
         </ResourceDetailLayout>
-      )}
+        )
+      }}
     </QueryState>
   )
 }

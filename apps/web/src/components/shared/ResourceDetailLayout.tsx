@@ -1,8 +1,10 @@
 import { useEffect } from 'react'
 import type { ReactNode } from 'react'
 import { Link } from '@tanstack/react-router'
+import type { Health } from '@klyro/api-client'
 import { formatAge } from '#/features/clusters/health'
 import { useClusterSelectionStore } from '#/features/clusters/selection-store'
+import { Dot } from '#/components/shared/Dot'
 
 export function ResourceDetailLayout({
   kind,
@@ -11,6 +13,7 @@ export function ResourceDetailLayout({
   createdAt,
   backHref,
   clusterId,
+  health,
   children,
 }: {
   kind: string
@@ -19,6 +22,10 @@ export function ResourceDetailLayout({
   createdAt: string
   backHref: string
   clusterId: string
+  /** This Resource's own readiness, not the Cluster's — pass it where a
+   * kind has one (Pod/Node/Workload); omit it where "ready" isn't a
+   * concept the kind has (Service/Ingress). See the Dot component. */
+  health?: Health
   children: ReactNode
 }) {
   // The dashboard's Cluster panel is driven by selection-store state, not
@@ -42,9 +49,14 @@ export function ResourceDetailLayout({
           </Link>
         </div>
         <div className="flex flex-col items-end gap-1">
-          <h1 className="font-mono text-sm tracking-wide text-foreground">
-            {kind} / {namespace ? `${namespace}/` : ''}
-            {name}
+          <h1 className="flex items-center gap-2 font-mono text-lg font-semibold tracking-tight text-foreground">
+            {health && <Dot health={health} />}
+            <span>
+              <span className="text-muted-foreground">
+                {kind} / {namespace ? `${namespace}/` : ''}
+              </span>
+              {name}
+            </span>
           </h1>
           <span className="font-mono text-xs tabular-nums text-muted-foreground">
             Age {formatAge(createdAt)}

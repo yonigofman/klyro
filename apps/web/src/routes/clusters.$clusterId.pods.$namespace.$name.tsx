@@ -6,6 +6,8 @@ import { ResourceTable } from '#/components/shared/ResourceTable'
 import type { ResourceTableColumn } from '#/components/shared/ResourceTable'
 import { ManifestSection } from '#/components/shared/ManifestSection'
 import { ResourceEventsSection } from '#/components/shared/ResourceEventsSection'
+import { Dot } from '#/components/shared/Dot'
+import { conditionHealth } from '#/features/clusters/health'
 import { usePodDetail, usePodManifest } from '#/features/clusters/queries'
 
 export const Route = createFileRoute('/clusters/$clusterId/pods/$namespace/$name')({
@@ -21,7 +23,12 @@ const containerColumns: ResourceTableColumn<ContainerDetail>[] = [
   {
     header: 'Ready',
     cellClassName: 'font-mono text-sm uppercase text-muted-foreground',
-    render: (c) => (c.ready ? 'Ready' : 'Not Ready'),
+    render: (c) => (
+      <span className="inline-flex items-center gap-2">
+        <Dot health={c.ready ? 'green' : 'red'} />
+        {c.ready ? 'Ready' : 'Not Ready'}
+      </span>
+    ),
   },
   {
     header: 'Restarts',
@@ -57,7 +64,9 @@ export function PodDetailPage({
       loadingLabel="Loading pod…"
       notFoundLabel="This Pod no longer exists."
     >
-      {(pod) => (
+      {(pod) => {
+        const readyCondition = pod.conditions.find((c) => c.type === 'Ready')
+        return (
         <ResourceDetailLayout
           kind="Pod"
           name={pod.name}
@@ -65,6 +74,7 @@ export function PodDetailPage({
           createdAt={pod.createdAt}
           backHref="/"
           clusterId={clusterId}
+          health={readyCondition ? conditionHealth(readyCondition.type, readyCondition.status) : undefined}
         >
           <DetailSection title="Containers">
             <ResourceTable
@@ -78,9 +88,10 @@ export function PodDetailPage({
             {pod.conditions.length === 0 ? (
               <p className="text-sm text-muted-foreground">No conditions reported.</p>
             ) : (
-              <ul className="flex flex-col gap-1 font-mono text-sm text-muted-foreground">
+              <ul className="flex flex-col gap-1.5 font-mono text-sm text-muted-foreground">
                 {pod.conditions.map((condition) => (
-                  <li key={condition.type}>
+                  <li key={condition.type} className="inline-flex items-center gap-2">
+                    <Dot health={conditionHealth(condition.type, condition.status)} />
                     {condition.type}: {condition.status}
                   </li>
                 ))}
@@ -101,7 +112,8 @@ export function PodDetailPage({
             useManifest={(enabled) => usePodManifest(clusterId, namespace, name, enabled)}
           />
         </ResourceDetailLayout>
-      )}
+        )
+      }}
     </QueryState>
   )
 }
