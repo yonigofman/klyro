@@ -2,6 +2,7 @@
   "name": "@klyro/api",
   "private": true,
   "scripts": {
+    "dev": "go run ./cmd/api",
     "build": "go build ./...",
     "lint": "go vet ./...",
     "test": "go test ./..."
