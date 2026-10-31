@@ -6,7 +6,13 @@ import {
 } from '#/features/clusters/health'
 import { useClusterSelectionStore } from '#/features/clusters/selection-store'
 import { StatusDot } from '#/features/clusters/components/StatusDot'
+import { FlipValue } from '#/components/shared/FlipValue'
 import { cn } from '#/lib/utils'
+
+// Staggers each row's entrance flip — "the board powering up" — capped so
+// a long roster doesn't leave the bottom rows waiting.
+const ROW_FLIP_STAGGER_MS = 40
+const ROW_FLIP_STAGGER_CAP_MS = 400
 
 export function ClusterRoster({ clusters }: { clusters: Cluster[] }) {
   const density = rosterDensity(clusters.length)
@@ -30,8 +36,9 @@ export function ClusterRoster({ clusters }: { clusters: Cluster[] }) {
         </tr>
       </thead>
       <tbody>
-        {clusters.map((cluster) => {
+        {clusters.map((cluster, index) => {
           const isSelected = cluster.id === selectedClusterId
+          const enterDelayMs = Math.min(index * ROW_FLIP_STAGGER_MS, ROW_FLIP_STAGGER_CAP_MS)
           return (
             <tr
               key={cluster.id}
@@ -53,7 +60,9 @@ export function ClusterRoster({ clusters }: { clusters: Cluster[] }) {
               <td
                 className={cn('py-2', density === 'dense' ? 'py-1.5' : 'py-3')}
               >
-                <StatusDot health={cluster.health} />
+                <FlipValue watch={cluster.health} enterDelayMs={enterDelayMs}>
+                  <StatusDot health={cluster.health} />
+                </FlipValue>
               </td>
               <td className="py-2 font-mono font-medium text-foreground">
                 {cluster.displayName}
@@ -65,16 +74,22 @@ export function ClusterRoster({ clusters }: { clusters: Cluster[] }) {
                 {cluster.kubernetesVersion || '—'}
               </td>
               <td className="py-2 font-mono text-sm tabular-nums text-muted-foreground">
-                {cluster.nodeCount}
+                <FlipValue watch={cluster.nodeCount} enterDelayMs={enterDelayMs}>
+                  {cluster.nodeCount}
+                </FlipValue>
               </td>
               <td className="py-2 font-mono text-sm tabular-nums text-muted-foreground">
-                {cluster.podCount}
+                <FlipValue watch={cluster.podCount} enterDelayMs={enterDelayMs}>
+                  {cluster.podCount}
+                </FlipValue>
               </td>
               <td className="py-2 font-mono text-sm tabular-nums text-muted-foreground">
                 {formatLastSeen(cluster.lastSeen)}
               </td>
               <td className="py-2 text-sm text-muted-foreground">
-                {connectionStatusLabel(cluster.connectionStatus)}
+                <FlipValue watch={cluster.connectionStatus} enterDelayMs={enterDelayMs}>
+                  {connectionStatusLabel(cluster.connectionStatus)}
+                </FlipValue>
               </td>
             </tr>
           )

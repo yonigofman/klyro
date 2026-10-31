@@ -103,6 +103,35 @@ body {
   background-color: var(--ring);
 }
 
+/* The departure board's signature move — a flap settling into place.
+   See FlipValue.tsx and the confirmed cluster-overview-dashboard brief
+   under .impeccable/surfaces/. */
+@keyframes flip-reveal {
+  0% {
+    transform: rotateX(90deg);
+    opacity: 0.4;
+  }
+  60% {
+    transform: rotateX(-12deg);
+    opacity: 1;
+  }
+  100% {
+    transform: rotateX(0deg);
+    opacity: 1;
+  }
+}
+
+.animate-flip-reveal {
+  transform-origin: 50% 0%;
+  animation: flip-reveal 420ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-flip-reveal {
+    animation: none;
+  }
+}
+
 code {
   font-size: 0.9em;
   border: 1px solid var(--border);

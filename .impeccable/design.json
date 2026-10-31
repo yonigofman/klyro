@@ -1,0 +1,104 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-10-31T21:00:00Z",
+  "title": "Design System: Klyro",
+  "extensions": {
+    "colorMeta": {
+      "background": { "role": "neutral", "displayName": "Near-Black Slate", "canonical": "#0b0e11" },
+      "foreground": { "role": "neutral", "displayName": "Pale Slate", "canonical": "#e5e7eb" },
+      "card": { "role": "neutral", "displayName": "Panel Slate", "canonical": "#0f1317" },
+      "secondary": { "role": "neutral", "displayName": "Raised Slate", "canonical": "#1a1f24" },
+      "muted": { "role": "neutral", "displayName": "Recessed Slate", "canonical": "#151a1e" },
+      "muted-foreground": { "role": "neutral", "displayName": "Cool Gray", "canonical": "#8b97a1" },
+      "border": { "role": "neutral", "displayName": "Hairline", "canonical": "#1f252b" },
+      "ring": { "role": "neutral", "displayName": "Focus Ring", "canonical": "#3a4654" },
+      "health-green": { "role": "primary", "displayName": "Health Green", "canonical": "#10b981" },
+      "health-amber": { "role": "primary", "displayName": "Health Amber", "canonical": "#f59e0b" },
+      "health-red": { "role": "primary", "displayName": "Health Red", "canonical": "#ef4444" }
+    },
+    "typographyMeta": {
+      "body": { "displayName": "Body", "purpose": "Table cells, section prose." },
+      "identity": { "displayName": "Identity/Numeric", "purpose": "Names, versions, counts, timestamps — anything that is data, set tabular." },
+      "subject": { "displayName": "Subject", "purpose": "A Resource Detail page's own name — the one piece of text set larger and bolder than everything around it." }
+    },
+    "motion": [
+      {
+        "name": "flip-reveal",
+        "value": "rotateX(90deg)->rotateX(-12deg)->rotateX(0deg), opacity 0.4->1, 420ms cubic-bezier(0.16,1,0.3,1)",
+        "purpose": "The departure board's one signature move. Plays on first paint (staggered per roster row, 40ms apart, capped 400ms) and whenever a watched value changes. Disabled entirely under prefers-reduced-motion."
+      }
+    ],
+    "breakpoints": []
+  },
+  "components": [
+    {
+      "name": "Status Dot",
+      "kind": "custom",
+      "refersTo": "status-dot",
+      "description": "A filled circle in one of the three reserved health colors. The system's only recurring iconography.",
+      "html": "<span class=\"ds-status-dot\" aria-hidden=\"true\"></span>",
+      "css": ".ds-status-dot { display: inline-block; width: 0.5rem; height: 0.5rem; border-radius: 9999px; background-color: #10b981; }"
+    },
+    {
+      "name": "Flip Value",
+      "kind": "custom",
+      "refersTo": "roster-row",
+      "description": "Wraps any value that should play the flip-reveal signature motion on first paint or on change.",
+      "html": "<span class=\"ds-flip-value\">1</span>",
+      "css": ".ds-flip-value { display: inline-block; transform-origin: 50% 0%; animation: ds-flip-reveal 420ms cubic-bezier(0.16,0,0.3,1) both; } @keyframes ds-flip-reveal { 0% { transform: rotateX(90deg); opacity: 0.4; } 60% { transform: rotateX(-12deg); opacity: 1; } 100% { transform: rotateX(0deg); opacity: 1; } } @media (prefers-reduced-motion: reduce) { .ds-flip-value { animation: none; } }"
+    },
+    {
+      "name": "Resource Table",
+      "kind": "custom",
+      "refersTo": "roster-row",
+      "description": "The shared table shell for every tabular list — hairline rows, sticky header within a scroll ancestor, dropped last-column gap.",
+      "html": "<table class=\"ds-table\"><thead><tr><th>Name</th><th>Status</th></tr></thead><tbody><tr><td>web-1</td><td>Running</td></tr></tbody></table>",
+      "css": ".ds-table { width: 100%; border-collapse: collapse; text-align: left; } .ds-table thead tr { position: sticky; top: 0; border-bottom: 1px solid #1f252b; background: #0b0e11; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; color: #8b97a1; } .ds-table th, .ds-table td { padding: 0.5rem 1.5rem 0.5rem 0; font-family: ui-monospace, monospace; font-size: 0.875rem; } .ds-table th:last-child, .ds-table td:last-child { padding-right: 0; } .ds-table tbody tr { border-bottom: 1px solid rgba(31,37,43,0.6); }"
+    },
+    {
+      "name": "Detail Header",
+      "kind": "custom",
+      "refersTo": "detail-header-name",
+      "description": "A Resource Detail page's header: an optional health dot, a muted kind/namespace prefix, and the Resource's own name set at full weight.",
+      "html": "<h1 class=\"ds-detail-header\"><span class=\"ds-status-dot\"></span><span class=\"ds-detail-prefix\">Pod / default/</span>web-1</h1>",
+      "css": ".ds-detail-header { display: flex; align-items: center; gap: 0.5rem; font-family: ui-monospace, monospace; font-size: 1.125rem; font-weight: 600; letter-spacing: -0.025em; color: #e5e7eb; } .ds-detail-prefix { color: #8b97a1; }"
+    },
+    {
+      "name": "Collapsible Manifest",
+      "kind": "custom",
+      "description": "The one deliberate exception to curated data — a Resource's raw YAML, collapsed by default.",
+      "html": "<div class=\"ds-manifest\"><button class=\"ds-manifest-trigger\">&#9656; Manifest</button><pre class=\"ds-manifest-body\">apiVersion: v1\nkind: Pod</pre></div>",
+      "css": ".ds-manifest-trigger { display: flex; align-items: center; gap: 0.375rem; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; color: #8b97a1; background: none; border: none; cursor: pointer; } .ds-manifest-trigger:hover { color: #e5e7eb; } .ds-manifest-body { max-height: 24rem; overflow: auto; border: 1px solid #1f252b; background: #151a1e; border-radius: 0.375rem; padding: 0.75rem; font-family: ui-monospace, monospace; font-size: 0.75rem; color: #8b97a1; }"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Departure Board",
+    "overview": "Klyro's confirmed direction refuses the category default a Kubernetes dashboard always ships: a sidebar of KPI cards over a passive data table. Instead, every connected Cluster is a row on a live departure board, scanned top to bottom in under a second, with state changes that visibly flip into place rather than silently updating. The same restraint that makes a real departure board trustworthy — exactly the colors that carry meaning, nothing decorative — is Klyro's whole color discipline: three reserved health colors and nowhere else.",
+    "keyCharacteristics": [
+      "Near-black slate ground, never pure black",
+      "Tabular-figure monospace for every identity/numeric field; Inter for labels and prose",
+      "Hairline row dividers do the structural work a card grid would otherwise need",
+      "Exactly three reserved colors for health state, never used decoratively",
+      "One signature motion (the flip), triggered only by real state change or first paint"
+    ],
+    "rules": [
+      { "name": "The Three-Color Rule", "body": "Green, amber, and red exist for exactly one job — Resource health — at every scale from a single Pod's own Ready condition up to a Cluster's aggregate. They never appear as a brand accent, a decorative highlight, or a fourth meaning.", "section": "colors" },
+      { "name": "The Tabular Rule", "body": "Any field that is a count, a version, a timestamp, or an identity string sets in the monospace stack with tabular-nums. Prose and labels never do.", "section": "typography" },
+      { "name": "The No-Shadow Rule", "body": "Every surface is flat. A raised state (hover, selection) is a background-color shift, never a shadow.", "section": "elevation" }
+    ],
+    "dos": [
+      "Do reserve green/amber/red for health state only, at any zoom level.",
+      "Do set every identity/numeric value in the monospace stack with tabular-nums.",
+      "Do play the flip motion only on real state change or first paint.",
+      "Do respect prefers-reduced-motion on every animation.",
+      "Do keep tables and hairlines as the structural device; reach for ResourceTable before inventing a new list shell."
+    ],
+    "donts": [
+      "Don't add a fourth decorative accent color.",
+      "Don't add card shadows, gradients, or rounded-everything.",
+      "Don't scatter the flip motion across unrelated hovers or page transitions.",
+      "Don't build a new table/list component when ResourceTable already does the job.",
+      "Don't let the command palette, or any future control, read as a costume of a terminal."
+    ]
+  }
+}
