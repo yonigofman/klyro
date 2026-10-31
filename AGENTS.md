@@ -397,3 +397,15 @@ When working on Klyro:
 10. Prioritize security, accessibility, and developer experience.
 
 **Primary goal:** Build Klyro into a polished, reliable, and extensible Kubernetes management platform with an excellent user experience.
+
+---
+
+## Agent skills
+
+### Issue tracker
+
+GitHub Issues via `gh` CLI (PRs-as-request-surface off). See `docs/agents/issue-tracker.md`.
+
+### Domain docs
+
+Single-context layout: `CONTEXT.md` + `docs/adr/` at repo root. See `docs/agents/domain.md`.
