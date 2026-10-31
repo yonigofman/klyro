@@ -2,7 +2,9 @@ import { createFileRoute, Link } from '@tanstack/react-router'
 import type { WorkloadKind } from '@klyro/api-client'
 import { QueryState } from '#/components/shared/QueryState'
 import { ResourceDetailLayout, DetailSection } from '#/components/shared/ResourceDetailLayout'
-import { useWorkloadDetail } from '#/features/clusters/queries'
+import { ManifestSection } from '#/components/shared/ManifestSection'
+import { ResourceEventsSection } from '#/components/shared/ResourceEventsSection'
+import { useWorkloadDetail, useWorkloadManifest } from '#/features/clusters/queries'
 
 export const Route = createFileRoute(
   '/clusters/$clusterId/workloads/$namespace/$kind/$name',
@@ -77,6 +79,19 @@ export function WorkloadDetailPage({
               </ul>
             )}
           </DetailSection>
+
+          <DetailSection title="Events">
+            <ResourceEventsSection
+              clusterId={clusterId}
+              namespace={namespace}
+              kind={workload.kind}
+              name={workload.name}
+            />
+          </DetailSection>
+
+          <ManifestSection
+            useManifest={(enabled) => useWorkloadManifest(clusterId, namespace, kind, name, enabled)}
+          />
         </ResourceDetailLayout>
       )}
     </QueryState>

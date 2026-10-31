@@ -1,14 +1,17 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { render, screen, within } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { ApiError } from '@klyro/api-client'
 
-const { getIngress } = vi.hoisted(() => ({
+const { getIngress, getIngressManifest, listEvents } = vi.hoisted(() => ({
   getIngress: vi.fn(),
+  getIngressManifest: vi.fn(),
+  listEvents: vi.fn(),
 }))
 
 vi.mock('#/lib/api-client', () => ({
-  apiClient: { getIngress },
+  apiClient: { getIngress, getIngressManifest, listEvents },
 }))
 
 const { IngressDetailPage } = await import('./clusters.$clusterId.ingresses.$namespace.$name')
@@ -24,10 +27,12 @@ function renderPage() {
 
 beforeEach(() => {
   getIngress.mockReset()
+  getIngressManifest.mockReset()
+  listEvents.mockReset().mockResolvedValue([])
 })
 
 describe('Ingress detail page', () => {
-  it('shows backend rules and TLS hosts', async () => {
+  it('shows backend rules linking to their Service, and TLS hosts', async () => {
     getIngress.mockResolvedValue({
       name: 'web',
       namespace: 'default',
@@ -40,7 +45,8 @@ describe('Ingress detail page', () => {
     renderPage()
 
     const row = (await screen.findByText('web.example.com', { selector: 'td' })).closest('tr')!
-    expect(within(row).getByText('web-svc:80')).toBeInTheDocument()
+    const serviceLink = within(row).getByRole('link', { name: 'web-svc:80' })
+    expect(serviceLink).toHaveAttribute('href', '/clusters/c1/services/default/web-svc')
   })
 
   it('shows a message when no TLS is configured', async () => {
@@ -64,5 +70,26 @@ describe('Ingress detail page', () => {
     renderPage()
 
     expect(await screen.findByText(/no longer exists/i)).toBeInTheDocument()
+  })
+
+  it('fetches and shows the Manifest only once expanded', async () => {
+    getIngress.mockResolvedValue({
+      name: 'web',
+      namespace: 'default',
+      hosts: ['web.example.com'],
+      createdAt: '2026-01-01T00:00:00Z',
+      rules: [],
+      tlsHosts: [],
+    })
+    getIngressManifest.mockResolvedValue('apiVersion: networking.k8s.io/v1\nkind: Ingress\n')
+
+    renderPage()
+    await screen.findByText('Manifest')
+    expect(getIngressManifest).not.toHaveBeenCalled()
+
+    await userEvent.click(screen.getByText('Manifest'))
+
+    expect(await screen.findByText(/kind: Ingress/)).toBeInTheDocument()
+    expect(getIngressManifest).toHaveBeenCalledWith('c1', 'default', 'web')
   })
 })

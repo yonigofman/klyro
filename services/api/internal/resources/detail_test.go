@@ -3,6 +3,7 @@ package resources_test
 import (
 	"encoding/json"
 	"net/http"
+	"strings"
 	"testing"
 
 	appsv1 "k8s.io/api/apps/v1"
@@ -270,8 +271,12 @@ func TestGetService_ReturnsSelectorAndEndpoints(t *testing.T) {
 		t.Errorf("selector = %v, want {app: web}", body["selector"])
 	}
 	endpoints, ok := body["endpoints"].([]any)
-	if !ok || len(endpoints) != 1 || endpoints[0] != "10.1.2.3" {
-		t.Errorf("endpoints = %v, want [10.1.2.3]", body["endpoints"])
+	if !ok || len(endpoints) != 1 {
+		t.Fatalf("endpoints = %v, want 1", body["endpoints"])
+	}
+	endpoint := endpoints[0].(map[string]any)
+	if endpoint["podName"] != "web-1" || endpoint["ip"] != "10.1.2.3" {
+		t.Errorf("endpoint = %v, want {podName: web-1, ip: 10.1.2.3}", endpoint)
 	}
 }
 
@@ -304,8 +309,12 @@ func TestGetService_EndpointsExcludeNotReadyPods(t *testing.T) {
 		t.Fatalf("status = %d, want 200; body = %v", resp.StatusCode, body)
 	}
 	endpoints, ok := body["endpoints"].([]any)
-	if !ok || len(endpoints) != 1 || endpoints[0] != "10.1.2.3" {
-		t.Errorf("endpoints = %v, want [10.1.2.3] (not-ready web-2 excluded)", body["endpoints"])
+	if !ok || len(endpoints) != 1 {
+		t.Fatalf("endpoints = %v, want 1 (not-ready web-2 excluded)", body["endpoints"])
+	}
+	endpoint := endpoints[0].(map[string]any)
+	if endpoint["podName"] != "web-1" || endpoint["ip"] != "10.1.2.3" {
+		t.Errorf("endpoint = %v, want {podName: web-1, ip: 10.1.2.3}", endpoint)
 	}
 }
 
@@ -396,6 +405,146 @@ func TestGetNode_UnknownNameIs404(t *testing.T) {
 	defer srv.Close()
 
 	resp, _ := getJSON(t, srv.URL+"/api/v1/clusters/"+clusterID+"/nodes/does-not-exist")
+	if resp.StatusCode != http.StatusNotFound {
+		t.Fatalf("status = %d, want 404", resp.StatusCode)
+	}
+}
+
+// --- manifests --------------------------------------------------------
+
+func manifestString(t *testing.T, body map[string]any) string {
+	t.Helper()
+	manifest, ok := body["manifest"].(string)
+	if !ok {
+		t.Fatalf("manifest = %v, want a string", body["manifest"])
+	}
+	return manifest
+}
+
+func TestGetPodManifest_ReturnsRawYAML(t *testing.T) {
+	cs := fakeclient.NewSimpleClientset(podWithLabels("web-1", "default", map[string]string{"app": "web"}))
+	srv, clusterID := newTestServer(t, cs)
+	defer srv.Close()
+
+	resp, body := getObject(t, srv.URL+"/api/v1/clusters/"+clusterID+"/pods/default/web-1/manifest")
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("status = %d, want 200; body = %v", resp.StatusCode, body)
+	}
+	manifest := manifestString(t, body)
+	if !strings.Contains(manifest, "name: web-1") || !strings.Contains(manifest, "namespace: default") {
+		t.Errorf("manifest = %q, want it to contain name: web-1 and namespace: default", manifest)
+	}
+	if !strings.Contains(manifest, "image: nginx:1.25") {
+		t.Errorf("manifest = %q, want the raw container spec (image: nginx:1.25)", manifest)
+	}
+}
+
+func TestGetPodManifest_UnknownNameIs404(t *testing.T) {
+	srv, clusterID := newTestServer(t, fakeclient.NewSimpleClientset())
+	defer srv.Close()
+
+	resp, _ := getJSON(t, srv.URL+"/api/v1/clusters/"+clusterID+"/pods/default/does-not-exist/manifest")
+	if resp.StatusCode != http.StatusNotFound {
+		t.Fatalf("status = %d, want 404", resp.StatusCode)
+	}
+}
+
+func TestGetWorkloadManifest_ReturnsRawYAML(t *testing.T) {
+	labels := map[string]string{"app": "web"}
+	cs := fakeclient.NewSimpleClientset(deploymentWithSelector("web", "default", 2, 2, labels))
+	srv, clusterID := newTestServer(t, cs)
+	defer srv.Close()
+
+	resp, body := getObject(t, srv.URL+"/api/v1/clusters/"+clusterID+"/workloads/default/Deployment/web/manifest")
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("status = %d, want 200; body = %v", resp.StatusCode, body)
+	}
+	manifest := manifestString(t, body)
+	if !strings.Contains(manifest, "name: web") || !strings.Contains(manifest, "RollingUpdate") {
+		t.Errorf("manifest = %q, want name: web and the RollingUpdate strategy", manifest)
+	}
+}
+
+func TestGetWorkloadManifest_UnknownKindIs400(t *testing.T) {
+	srv, clusterID := newTestServer(t, fakeclient.NewSimpleClientset())
+	defer srv.Close()
+
+	resp, _ := getJSON(t, srv.URL+"/api/v1/clusters/"+clusterID+"/workloads/default/CronJob/web/manifest")
+	if resp.StatusCode != http.StatusBadRequest {
+		t.Fatalf("status = %d, want 400", resp.StatusCode)
+	}
+}
+
+func TestGetServiceManifest_ReturnsRawYAML(t *testing.T) {
+	cs := fakeclient.NewSimpleClientset(serviceWithSelector("web", "default", map[string]string{"app": "web"}))
+	srv, clusterID := newTestServer(t, cs)
+	defer srv.Close()
+
+	resp, body := getObject(t, srv.URL+"/api/v1/clusters/"+clusterID+"/services/default/web/manifest")
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("status = %d, want 200; body = %v", resp.StatusCode, body)
+	}
+	manifest := manifestString(t, body)
+	if !strings.Contains(manifest, "name: web") || !strings.Contains(manifest, "clusterIP: 10.0.0.1") {
+		t.Errorf("manifest = %q, want name: web and clusterIP: 10.0.0.1", manifest)
+	}
+}
+
+func TestGetServiceManifest_UnknownNameIs404(t *testing.T) {
+	srv, clusterID := newTestServer(t, fakeclient.NewSimpleClientset())
+	defer srv.Close()
+
+	resp, _ := getJSON(t, srv.URL+"/api/v1/clusters/"+clusterID+"/services/default/does-not-exist/manifest")
+	if resp.StatusCode != http.StatusNotFound {
+		t.Fatalf("status = %d, want 404", resp.StatusCode)
+	}
+}
+
+func TestGetIngressManifest_ReturnsRawYAML(t *testing.T) {
+	cs := fakeclient.NewSimpleClientset(ingressWithRule("web", "default", "web.example.com", "/", "web-svc", 80))
+	srv, clusterID := newTestServer(t, cs)
+	defer srv.Close()
+
+	resp, body := getObject(t, srv.URL+"/api/v1/clusters/"+clusterID+"/ingresses/default/web/manifest")
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("status = %d, want 200; body = %v", resp.StatusCode, body)
+	}
+	manifest := manifestString(t, body)
+	if !strings.Contains(manifest, "name: web") || !strings.Contains(manifest, "web.example.com") {
+		t.Errorf("manifest = %q, want name: web and host web.example.com", manifest)
+	}
+}
+
+func TestGetIngressManifest_UnknownNameIs404(t *testing.T) {
+	srv, clusterID := newTestServer(t, fakeclient.NewSimpleClientset())
+	defer srv.Close()
+
+	resp, _ := getJSON(t, srv.URL+"/api/v1/clusters/"+clusterID+"/ingresses/default/does-not-exist/manifest")
+	if resp.StatusCode != http.StatusNotFound {
+		t.Fatalf("status = %d, want 404", resp.StatusCode)
+	}
+}
+
+func TestGetNodeManifest_ReturnsRawYAML(t *testing.T) {
+	cs := fakeclient.NewSimpleClientset(nodeWithCapacity("node-a"))
+	srv, clusterID := newTestServer(t, cs)
+	defer srv.Close()
+
+	resp, body := getObject(t, srv.URL+"/api/v1/clusters/"+clusterID+"/nodes/node-a/manifest")
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("status = %d, want 200; body = %v", resp.StatusCode, body)
+	}
+	manifest := manifestString(t, body)
+	if !strings.Contains(manifest, "name: node-a") || !strings.Contains(manifest, "dedicated") {
+		t.Errorf("manifest = %q, want name: node-a and the dedicated taint", manifest)
+	}
+}
+
+func TestGetNodeManifest_UnknownNameIs404(t *testing.T) {
+	srv, clusterID := newTestServer(t, fakeclient.NewSimpleClientset())
+	defer srv.Close()
+
+	resp, _ := getJSON(t, srv.URL+"/api/v1/clusters/"+clusterID+"/nodes/does-not-exist/manifest")
 	if resp.StatusCode != http.StatusNotFound {
 		t.Fatalf("status = %d, want 404", resp.StatusCode)
 	}

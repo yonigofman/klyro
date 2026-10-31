@@ -8,6 +8,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/util/validation"
+	"sigs.k8s.io/yaml"
 
 	kube "github.com/yonigofman/klyro/services/api/internal/kubernetes"
 )
@@ -436,7 +437,7 @@ func (s *Service) GetService(ctx context.Context, clusterID, namespace, name str
 		ports = append(ports, fmt.Sprintf("%d/%s", p.Port, p.Protocol))
 	}
 
-	endpoints := []string{}
+	endpoints := []ServiceEndpoint{}
 	if len(svc.Spec.Selector) > 0 {
 		pods, err := client.ListPodsMatchingLabels(ctx, namespace, svc.Spec.Selector)
 		if err != nil {
@@ -444,7 +445,7 @@ func (s *Service) GetService(ctx context.Context, clusterID, namespace, name str
 		}
 		for _, pod := range pods {
 			if pod.Status.PodIP != "" && podIsReady(pod) {
-				endpoints = append(endpoints, pod.Status.PodIP)
+				endpoints = append(endpoints, ServiceEndpoint{PodName: pod.Name, IP: pod.Status.PodIP})
 			}
 		}
 	}
@@ -556,6 +557,124 @@ func mapGetError(err error, context string) error {
 		return ErrResourceNotFound
 	}
 	return fmt.Errorf("%s: %w", context, err)
+}
+
+// GetPodManifest returns one Pod's raw object as YAML — the one deliberate
+// exception to curated Detail DTOs (ADR 0003). It never redacts anything;
+// this must never be extended to Secrets.
+func (s *Service) GetPodManifest(ctx context.Context, clusterID, namespace, name string) (string, error) {
+	if err := validateNamespace(namespace); err != nil {
+		return "", err
+	}
+
+	client, err := s.clientFor(clusterID)
+	if err != nil {
+		return "", err
+	}
+
+	pod, err := client.GetPod(ctx, namespace, name)
+	if err != nil {
+		return "", mapGetError(err, "getting pod")
+	}
+	return marshalManifest(pod)
+}
+
+// GetWorkloadManifest returns one Workload's raw object as YAML, by kind
+// and name. See GetPodManifest's doc comment on the Manifest exception.
+func (s *Service) GetWorkloadManifest(ctx context.Context, clusterID, namespace string, kind WorkloadKind, name string) (string, error) {
+	if err := validateNamespace(namespace); err != nil {
+		return "", err
+	}
+
+	client, err := s.clientFor(clusterID)
+	if err != nil {
+		return "", err
+	}
+
+	switch kind {
+	case WorkloadKindDeployment:
+		d, err := client.GetDeployment(ctx, namespace, name)
+		if err != nil {
+			return "", mapGetError(err, "getting deployment")
+		}
+		return marshalManifest(d)
+	case WorkloadKindStatefulSet:
+		ss, err := client.GetStatefulSet(ctx, namespace, name)
+		if err != nil {
+			return "", mapGetError(err, "getting statefulset")
+		}
+		return marshalManifest(ss)
+	case WorkloadKindDaemonSet:
+		ds, err := client.GetDaemonSet(ctx, namespace, name)
+		if err != nil {
+			return "", mapGetError(err, "getting daemonset")
+		}
+		return marshalManifest(ds)
+	default:
+		return "", fmt.Errorf("unknown workload kind %q", kind)
+	}
+}
+
+// GetServiceManifest returns one Service's raw object as YAML. See
+// GetPodManifest's doc comment on the Manifest exception.
+func (s *Service) GetServiceManifest(ctx context.Context, clusterID, namespace, name string) (string, error) {
+	if err := validateNamespace(namespace); err != nil {
+		return "", err
+	}
+
+	client, err := s.clientFor(clusterID)
+	if err != nil {
+		return "", err
+	}
+
+	svc, err := client.GetService(ctx, namespace, name)
+	if err != nil {
+		return "", mapGetError(err, "getting service")
+	}
+	return marshalManifest(svc)
+}
+
+// GetIngressManifest returns one Ingress's raw object as YAML. See
+// GetPodManifest's doc comment on the Manifest exception.
+func (s *Service) GetIngressManifest(ctx context.Context, clusterID, namespace, name string) (string, error) {
+	if err := validateNamespace(namespace); err != nil {
+		return "", err
+	}
+
+	client, err := s.clientFor(clusterID)
+	if err != nil {
+		return "", err
+	}
+
+	ing, err := client.GetIngress(ctx, namespace, name)
+	if err != nil {
+		return "", mapGetError(err, "getting ingress")
+	}
+	return marshalManifest(ing)
+}
+
+// GetNodeManifest returns one Node's raw object as YAML. Nodes are
+// Cluster-scoped — there is no namespace to validate. See GetPodManifest's
+// doc comment on the Manifest exception.
+func (s *Service) GetNodeManifest(ctx context.Context, clusterID, name string) (string, error) {
+	client, err := s.clientFor(clusterID)
+	if err != nil {
+		return "", err
+	}
+
+	node, err := client.GetNode(ctx, name)
+	if err != nil {
+		return "", mapGetError(err, "getting node")
+	}
+	return marshalManifest(node)
+}
+
+func marshalManifest(obj any) (string, error) {
+	out, err := yaml.Marshal(obj)
+	if err != nil {
+		return "", fmt.Errorf("marshaling manifest: %w", err)
+	}
+	return string(out), nil
 }
 
 func containerStatusFor(name string, statuses []corev1.ContainerStatus) corev1.ContainerStatus {

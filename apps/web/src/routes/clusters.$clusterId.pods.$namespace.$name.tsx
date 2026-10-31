@@ -4,8 +4,9 @@ import { QueryState } from '#/components/shared/QueryState'
 import { ResourceDetailLayout, DetailSection } from '#/components/shared/ResourceDetailLayout'
 import { ResourceTable } from '#/components/shared/ResourceTable'
 import type { ResourceTableColumn } from '#/components/shared/ResourceTable'
-import { usePodDetail, useEvents } from '#/features/clusters/queries'
-import { EventList } from '#/features/clusters/components/EventList'
+import { ManifestSection } from '#/components/shared/ManifestSection'
+import { ResourceEventsSection } from '#/components/shared/ResourceEventsSection'
+import { usePodDetail, usePodManifest } from '#/features/clusters/queries'
 
 export const Route = createFileRoute('/clusters/$clusterId/pods/$namespace/$name')({
   component: () => {
@@ -49,7 +50,6 @@ export function PodDetailPage({
   name: string
 }) {
   const podQuery = usePodDetail(clusterId, namespace, name)
-  const eventsQuery = useEvents(clusterId, namespace)
 
   return (
     <QueryState
@@ -89,17 +89,17 @@ export function PodDetailPage({
           </DetailSection>
 
           <DetailSection title="Events">
-            <QueryState
-              query={eventsQuery}
-              loadingLabel="Loading events…"
-              isEmpty={(events) => events.filter((e) => e.involvedObjectName === pod.name).length === 0}
-              empty={<p className="text-sm text-muted-foreground">No events for this Pod.</p>}
-            >
-              {(events) => (
-                <EventList events={events.filter((e) => e.involvedObjectName === pod.name)} />
-              )}
-            </QueryState>
+            <ResourceEventsSection
+              clusterId={clusterId}
+              namespace={namespace}
+              kind="Pod"
+              name={pod.name}
+            />
           </DetailSection>
+
+          <ManifestSection
+            useManifest={(enabled) => usePodManifest(clusterId, namespace, name, enabled)}
+          />
         </ResourceDetailLayout>
       )}
     </QueryState>

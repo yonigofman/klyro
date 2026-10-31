@@ -103,12 +103,19 @@ export interface WorkloadDetail extends WorkloadSummary {
   podNames: string[];
 }
 
-/** ServiceSummary plus its selector and endpoint addresses. A Service with
+/** One Pod backing a Service, matched by the Service's selector and
+ * reported Ready. */
+export interface ServiceEndpoint {
+  podName: string;
+  ip: string;
+}
+
+/** ServiceSummary plus its selector and the Pods backing it. A Service with
  * no selector (e.g. type ExternalName) has a null selector, not an empty
  * object — Go's nil map marshals to JSON null. */
 export interface ServiceDetail extends ServiceSummary {
   selector: Record<string, string> | null;
-  endpoints: string[];
+  endpoints: ServiceEndpoint[];
 }
 
 /** One host/path routing rule on an Ingress. */

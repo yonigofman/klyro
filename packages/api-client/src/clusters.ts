@@ -76,6 +76,11 @@ export interface ApiClient {
   getService(clusterId: string, namespace: string, name: string): Promise<ServiceDetail>;
   getIngress(clusterId: string, namespace: string, name: string): Promise<IngressDetail>;
   getNode(clusterId: string, name: string): Promise<NodeDetail>;
+  getPodManifest(clusterId: string, namespace: string, name: string): Promise<string>;
+  getWorkloadManifest(clusterId: string, namespace: string, kind: WorkloadKind, name: string): Promise<string>;
+  getServiceManifest(clusterId: string, namespace: string, name: string): Promise<string>;
+  getIngressManifest(clusterId: string, namespace: string, name: string): Promise<string>;
+  getNodeManifest(clusterId: string, name: string): Promise<string>;
 }
 
 export function createApiClient(options: ApiClientOptions): ApiClient {
@@ -158,5 +163,29 @@ export function createApiClient(options: ApiClientOptions): ApiClient {
       ),
     getNode: (clusterId, name) =>
       request<NodeDetail>(`/api/v1/clusters/${encodeURIComponent(clusterId)}/nodes/${encodeURIComponent(name)}`),
+    getPodManifest: (clusterId, namespace, name) =>
+      request<ManifestResponse>(
+        `/api/v1/clusters/${encodeURIComponent(clusterId)}/pods/${encodeURIComponent(namespace)}/${encodeURIComponent(name)}/manifest`,
+      ).then((r) => r.manifest),
+    getWorkloadManifest: (clusterId, namespace, kind, name) =>
+      request<ManifestResponse>(
+        `/api/v1/clusters/${encodeURIComponent(clusterId)}/workloads/${encodeURIComponent(namespace)}/${encodeURIComponent(kind)}/${encodeURIComponent(name)}/manifest`,
+      ).then((r) => r.manifest),
+    getServiceManifest: (clusterId, namespace, name) =>
+      request<ManifestResponse>(
+        `/api/v1/clusters/${encodeURIComponent(clusterId)}/services/${encodeURIComponent(namespace)}/${encodeURIComponent(name)}/manifest`,
+      ).then((r) => r.manifest),
+    getIngressManifest: (clusterId, namespace, name) =>
+      request<ManifestResponse>(
+        `/api/v1/clusters/${encodeURIComponent(clusterId)}/ingresses/${encodeURIComponent(namespace)}/${encodeURIComponent(name)}/manifest`,
+      ).then((r) => r.manifest),
+    getNodeManifest: (clusterId, name) =>
+      request<ManifestResponse>(
+        `/api/v1/clusters/${encodeURIComponent(clusterId)}/nodes/${encodeURIComponent(name)}/manifest`,
+      ).then((r) => r.manifest),
   };
+}
+
+interface ManifestResponse {
+  manifest: string;
 }

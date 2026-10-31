@@ -1,7 +1,9 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { QueryState } from '#/components/shared/QueryState'
 import { ResourceDetailLayout, DetailSection } from '#/components/shared/ResourceDetailLayout'
-import { useNodeDetail } from '#/features/clusters/queries'
+import { ManifestSection } from '#/components/shared/ManifestSection'
+import { ResourceEventsSection } from '#/components/shared/ResourceEventsSection'
+import { useNodeDetail, useNodeManifest } from '#/features/clusters/queries'
 
 export const Route = createFileRoute('/clusters/$clusterId/nodes/$name')({
   component: () => {
@@ -80,6 +82,15 @@ export function NodeDetailPage({ clusterId, name }: { clusterId: string; name: s
               </ul>
             )}
           </DetailSection>
+
+          <DetailSection title="Events">
+            {/* Nodes are Cluster-scoped, but Events about them are
+                Namespace-scoped (CONTEXT.md) — fetch across all namespaces
+                and filter by name. */}
+            <ResourceEventsSection clusterId={clusterId} namespace="" kind="Node" name={node.name} />
+          </DetailSection>
+
+          <ManifestSection useManifest={(enabled) => useNodeManifest(clusterId, name, enabled)} />
         </ResourceDetailLayout>
       )}
     </QueryState>

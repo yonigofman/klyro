@@ -137,11 +137,19 @@ type WorkloadDetail struct {
 	PodNames       []string
 }
 
-// ServiceDetail is ServiceSummary plus its selector and endpoint addresses.
+// ServiceEndpoint is one Pod backing a Service — a Pod matched by the
+// Service's selector and reported Ready, paired with its name so the
+// frontend can link straight to that Pod's Detail page.
+type ServiceEndpoint struct {
+	PodName string
+	IP      string
+}
+
+// ServiceDetail is ServiceSummary plus its selector and the Pods backing it.
 type ServiceDetail struct {
 	ServiceSummary
 	Selector  map[string]string
-	Endpoints []string
+	Endpoints []ServiceEndpoint
 }
 
 // IngressRuleDetail is one host/path routing rule on an Ingress.

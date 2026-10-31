@@ -1,11 +1,13 @@
 import { useMemo, useState } from 'react'
 import { useClusters } from '#/features/clusters/queries'
 import { useClusterSelectionStore } from '#/features/clusters/selection-store'
+import { useCommandPaletteStore } from '#/features/clusters/command-palette-store'
 import { ClusterRoster } from '#/features/clusters/components/ClusterRoster'
 import { ClusterDetailPanel } from '#/features/clusters/components/ClusterDetailPanel'
 import { EmptyState } from '#/features/clusters/components/EmptyState'
 import { RegisterClusterDialog } from '#/features/clusters/components/RegisterClusterDialog'
 import { Input } from '#/components/ui/input'
+import { Button } from '#/components/ui/button'
 import { QueryState } from '#/components/shared/QueryState'
 
 export function ClusterDashboard() {
@@ -13,6 +15,7 @@ export function ClusterDashboard() {
   const selectedClusterId = useClusterSelectionStore(
     (state) => state.selectedClusterId,
   )
+  const openPalette = useCommandPaletteStore((state) => state.open)
   const [search, setSearch] = useState('')
 
   const filteredClusters = useMemo(() => {
@@ -43,6 +46,18 @@ export function ClusterDashboard() {
           aria-label="Search clusters"
           className="h-8 max-w-xs font-mono text-sm"
         />
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={openPalette}
+          className="h-8 gap-1.5 font-mono text-xs text-muted-foreground"
+          aria-label="Open command palette"
+        >
+          Jump to…
+          <kbd className="rounded border border-border px-1 font-mono text-[10px]">
+            ⌘K
+          </kbd>
+        </Button>
         <div className="ml-auto">
           <RegisterClusterDialog />
         </div>

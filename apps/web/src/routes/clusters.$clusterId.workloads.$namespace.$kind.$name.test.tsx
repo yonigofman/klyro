@@ -1,14 +1,17 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { render, screen } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { ApiError } from '@klyro/api-client'
 
-const { getWorkload } = vi.hoisted(() => ({
+const { getWorkload, getWorkloadManifest, listEvents } = vi.hoisted(() => ({
   getWorkload: vi.fn(),
+  getWorkloadManifest: vi.fn(),
+  listEvents: vi.fn(),
 }))
 
 vi.mock('#/lib/api-client', () => ({
-  apiClient: { getWorkload },
+  apiClient: { getWorkload, getWorkloadManifest, listEvents },
 }))
 
 const { WorkloadDetailPage } = await import(
@@ -26,6 +29,8 @@ function renderPage() {
 
 beforeEach(() => {
   getWorkload.mockReset()
+  getWorkloadManifest.mockReset()
+  listEvents.mockReset().mockResolvedValue([])
 })
 
 describe('Workload detail page', () => {
@@ -70,5 +75,68 @@ describe('Workload detail page', () => {
     renderPage()
 
     expect(await screen.findByText(/no longer exists/i)).toBeInTheDocument()
+  })
+
+  it('shows events scoped to this workload by kind and name', async () => {
+    getWorkload.mockResolvedValue({
+      kind: 'Deployment',
+      name: 'web',
+      namespace: 'default',
+      desired: 1,
+      ready: 1,
+      createdAt: '2026-01-01T00:00:00Z',
+      updateStrategy: 'RollingUpdate',
+      podNames: [],
+    })
+    listEvents.mockResolvedValue([
+      {
+        type: 'Normal',
+        reason: 'ScalingReplicaSet',
+        message: 'scaled up',
+        involvedObjectKind: 'Deployment',
+        involvedObjectName: 'web',
+        namespace: 'default',
+        count: 1,
+        lastSeen: '2026-01-01T00:00:00Z',
+      },
+      {
+        type: 'Normal',
+        reason: 'Created',
+        message: 'a StatefulSet with the same name',
+        involvedObjectKind: 'StatefulSet',
+        involvedObjectName: 'web',
+        namespace: 'default',
+        count: 1,
+        lastSeen: '2026-01-01T00:00:00Z',
+      },
+    ])
+
+    renderPage()
+
+    expect(await screen.findByText('ScalingReplicaSet')).toBeInTheDocument()
+    expect(screen.queryByText('Created')).not.toBeInTheDocument()
+  })
+
+  it('fetches and shows the Manifest only once expanded', async () => {
+    getWorkload.mockResolvedValue({
+      kind: 'Deployment',
+      name: 'web',
+      namespace: 'default',
+      desired: 1,
+      ready: 1,
+      createdAt: '2026-01-01T00:00:00Z',
+      updateStrategy: 'RollingUpdate',
+      podNames: [],
+    })
+    getWorkloadManifest.mockResolvedValue('apiVersion: apps/v1\nkind: Deployment\n')
+
+    renderPage()
+    await screen.findByText('Manifest')
+    expect(getWorkloadManifest).not.toHaveBeenCalled()
+
+    await userEvent.click(screen.getByText('Manifest'))
+
+    expect(await screen.findByText(/kind: Deployment/)).toBeInTheDocument()
+    expect(getWorkloadManifest).toHaveBeenCalledWith('c1', 'default', 'Deployment', 'web')
   })
 })

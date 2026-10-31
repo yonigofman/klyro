@@ -8,6 +8,7 @@ import { TanStackDevtools } from '@tanstack/react-devtools'
 import { QueryClientProvider } from '@tanstack/react-query'
 
 import TanStackQueryDevtools from '../integrations/tanstack-query/devtools'
+import { CommandPalette } from '#/features/clusters/components/CommandPalette'
 
 import appCss from '../styles.css?url'
 
@@ -51,6 +52,7 @@ function RootDocument({ children }: { children: React.ReactNode }) {
       <body>
         <QueryClientProvider client={queryClient}>
           {children}
+          <CommandPalette />
         </QueryClientProvider>
         <TanStackDevtools
           config={{

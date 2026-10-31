@@ -1,15 +1,17 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { render, screen, within } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { ApiError } from '@klyro/api-client'
 
-const { getPod, listEvents } = vi.hoisted(() => ({
+const { getPod, getPodManifest, listEvents } = vi.hoisted(() => ({
   getPod: vi.fn(),
+  getPodManifest: vi.fn(),
   listEvents: vi.fn(),
 }))
 
 vi.mock('#/lib/api-client', () => ({
-  apiClient: { getPod, listEvents },
+  apiClient: { getPod, getPodManifest, listEvents },
 }))
 
 const { PodDetailPage } = await import('./clusters.$clusterId.pods.$namespace.$name')
@@ -25,6 +27,7 @@ function renderPage() {
 
 beforeEach(() => {
   getPod.mockReset()
+  getPodManifest.mockReset()
   listEvents.mockReset().mockResolvedValue([])
 })
 
@@ -73,6 +76,16 @@ describe('Pod detail page', () => {
         count: 1,
         lastSeen: '2026-01-01T00:00:00Z',
       },
+      {
+        type: 'Normal',
+        reason: 'ServiceCreated',
+        message: 'a Service with the same name as this Pod',
+        involvedObjectKind: 'Service',
+        involvedObjectName: 'web-1',
+        namespace: 'default',
+        count: 1,
+        lastSeen: '2026-01-01T00:00:00Z',
+      },
     ])
 
     renderPage()
@@ -84,6 +97,32 @@ describe('Pod detail page', () => {
 
     expect(await screen.findByText('BackOff')).toBeInTheDocument()
     expect(screen.queryByText('Scheduled')).not.toBeInTheDocument()
+    // Same name, different kind — must not leak into this Pod's Events.
+    expect(screen.queryByText('ServiceCreated')).not.toBeInTheDocument()
+  })
+
+  it('fetches and shows the Manifest only once expanded', async () => {
+    getPod.mockResolvedValue({
+      name: 'web-1',
+      namespace: 'default',
+      phase: 'Running',
+      ready: '1/1',
+      restarts: 0,
+      node: 'node-a',
+      createdAt: '2026-01-01T00:00:00Z',
+      containers: [],
+      conditions: [],
+    })
+    getPodManifest.mockResolvedValue('apiVersion: v1\nkind: Pod\nmetadata:\n  name: web-1\n')
+
+    renderPage()
+    await screen.findByText('Manifest')
+    expect(getPodManifest).not.toHaveBeenCalled()
+
+    await userEvent.click(screen.getByText('Manifest'))
+
+    expect(await screen.findByText(/kind: Pod/)).toBeInTheDocument()
+    expect(getPodManifest).toHaveBeenCalledWith('c1', 'default', 'web-1')
   })
 
   it('shows a specific not-found message for a deleted pod', async () => {

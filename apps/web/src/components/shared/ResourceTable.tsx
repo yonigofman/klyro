@@ -26,7 +26,7 @@ export function ResourceTable<T>({
   return (
     <table className="w-full border-collapse text-left">
       <thead>
-        <tr className="border-b border-border text-xs uppercase tracking-wide text-muted-foreground">
+        <tr className="sticky top-0 z-10 border-b border-border bg-background text-xs uppercase tracking-wide text-muted-foreground">
           {columns.map((column) => (
             <th key={column.header} className="py-2 pr-6 font-normal last:pr-0">
               {column.header}

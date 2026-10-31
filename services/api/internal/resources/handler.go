@@ -36,6 +36,12 @@ func (h *Handler) Register(mux *http.ServeMux) {
 	mux.HandleFunc("GET /api/v1/clusters/{clusterId}/services/{namespace}/{name}", h.getService)
 	mux.HandleFunc("GET /api/v1/clusters/{clusterId}/ingresses/{namespace}/{name}", h.getIngress)
 	mux.HandleFunc("GET /api/v1/clusters/{clusterId}/nodes/{name}", h.getNode)
+
+	mux.HandleFunc("GET /api/v1/clusters/{clusterId}/pods/{namespace}/{name}/manifest", h.getPodManifest)
+	mux.HandleFunc("GET /api/v1/clusters/{clusterId}/workloads/{namespace}/{kind}/{name}/manifest", h.getWorkloadManifest)
+	mux.HandleFunc("GET /api/v1/clusters/{clusterId}/services/{namespace}/{name}/manifest", h.getServiceManifest)
+	mux.HandleFunc("GET /api/v1/clusters/{clusterId}/ingresses/{namespace}/{name}/manifest", h.getIngressManifest)
+	mux.HandleFunc("GET /api/v1/clusters/{clusterId}/nodes/{name}/manifest", h.getNodeManifest)
 }
 
 type namespaceResponseBody struct {
@@ -239,10 +245,15 @@ type workloadDetailResponseBody struct {
 	PodNames       []string `json:"podNames"`
 }
 
+type serviceEndpointResponseBody struct {
+	PodName string `json:"podName"`
+	IP      string `json:"ip"`
+}
+
 type serviceDetailResponseBody struct {
 	serviceResponseBody
-	Selector  map[string]string `json:"selector"`
-	Endpoints []string          `json:"endpoints"`
+	Selector  map[string]string             `json:"selector"`
+	Endpoints []serviceEndpointResponseBody `json:"endpoints"`
 }
 
 type ingressRuleResponseBody struct {
@@ -300,9 +311,19 @@ func (h *Handler) getPod(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-func (h *Handler) getWorkload(w http.ResponseWriter, r *http.Request) {
-	kind := WorkloadKind(r.PathValue("kind"))
+// parseWorkloadKind validates a path-supplied kind against the three kinds
+// Workload spans (see CONTEXT.md), reporting whether it's one of them.
+func parseWorkloadKind(raw string) (WorkloadKind, bool) {
+	kind := WorkloadKind(raw)
 	if kind != WorkloadKindDeployment && kind != WorkloadKindStatefulSet && kind != WorkloadKindDaemonSet {
+		return "", false
+	}
+	return kind, true
+}
+
+func (h *Handler) getWorkload(w http.ResponseWriter, r *http.Request) {
+	kind, ok := parseWorkloadKind(r.PathValue("kind"))
+	if !ok {
 		httputil.WriteError(w, http.StatusBadRequest, "unknown workload kind")
 		return
 	}
@@ -328,13 +349,18 @@ func (h *Handler) getService(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	endpoints := make([]serviceEndpointResponseBody, 0, len(svc.Endpoints))
+	for _, e := range svc.Endpoints {
+		endpoints = append(endpoints, serviceEndpointResponseBody{PodName: e.PodName, IP: e.IP})
+	}
+
 	httputil.WriteJSON(w, http.StatusOK, serviceDetailResponseBody{
 		serviceResponseBody: serviceResponseBody{
 			Name: svc.Name, Namespace: svc.Namespace, Type: svc.Type,
 			ClusterIP: svc.ClusterIP, Ports: svc.Ports, CreatedAt: svc.CreatedAt,
 		},
 		Selector:  svc.Selector,
-		Endpoints: svc.Endpoints,
+		Endpoints: endpoints,
 	})
 }
 
@@ -407,6 +433,56 @@ func (h *Handler) listEvents(w http.ResponseWriter, r *http.Request) {
 		})
 	}
 	httputil.WriteJSON(w, http.StatusOK, out)
+}
+
+type manifestResponseBody struct {
+	Manifest string `json:"manifest"`
+}
+
+func (h *Handler) getPodManifest(w http.ResponseWriter, r *http.Request) {
+	manifest, err := h.service.GetPodManifest(r.Context(), r.PathValue("clusterId"), r.PathValue("namespace"), r.PathValue("name"))
+	if writeServiceError(w, err) {
+		return
+	}
+	httputil.WriteJSON(w, http.StatusOK, manifestResponseBody{Manifest: manifest})
+}
+
+func (h *Handler) getWorkloadManifest(w http.ResponseWriter, r *http.Request) {
+	kind, ok := parseWorkloadKind(r.PathValue("kind"))
+	if !ok {
+		httputil.WriteError(w, http.StatusBadRequest, "unknown workload kind")
+		return
+	}
+
+	manifest, err := h.service.GetWorkloadManifest(r.Context(), r.PathValue("clusterId"), r.PathValue("namespace"), kind, r.PathValue("name"))
+	if writeServiceError(w, err) {
+		return
+	}
+	httputil.WriteJSON(w, http.StatusOK, manifestResponseBody{Manifest: manifest})
+}
+
+func (h *Handler) getServiceManifest(w http.ResponseWriter, r *http.Request) {
+	manifest, err := h.service.GetServiceManifest(r.Context(), r.PathValue("clusterId"), r.PathValue("namespace"), r.PathValue("name"))
+	if writeServiceError(w, err) {
+		return
+	}
+	httputil.WriteJSON(w, http.StatusOK, manifestResponseBody{Manifest: manifest})
+}
+
+func (h *Handler) getIngressManifest(w http.ResponseWriter, r *http.Request) {
+	manifest, err := h.service.GetIngressManifest(r.Context(), r.PathValue("clusterId"), r.PathValue("namespace"), r.PathValue("name"))
+	if writeServiceError(w, err) {
+		return
+	}
+	httputil.WriteJSON(w, http.StatusOK, manifestResponseBody{Manifest: manifest})
+}
+
+func (h *Handler) getNodeManifest(w http.ResponseWriter, r *http.Request) {
+	manifest, err := h.service.GetNodeManifest(r.Context(), r.PathValue("clusterId"), r.PathValue("name"))
+	if writeServiceError(w, err) {
+		return
+	}
+	httputil.WriteJSON(w, http.StatusOK, manifestResponseBody{Manifest: manifest})
 }
 
 // writeServiceError writes the appropriate response for a Service error and
