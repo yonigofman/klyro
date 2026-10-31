@@ -91,13 +91,14 @@ describe("ClusterDashboard", () => {
     listClusters.mockResolvedValue([]);
     renderDashboard();
 
+    await userEvent.click(await screen.findByRole("button", { name: /add cluster/i }));
     await userEvent.click(screen.getByRole("button", { name: /register cluster/i }));
 
     expect(await screen.findByText(/kubeconfig is required/i)).toBeInTheDocument();
     expect(registerCluster).not.toHaveBeenCalled();
   });
 
-  it("submits the register form and refreshes the roster", async () => {
+  it("submits the register form, closes the dialog, and refreshes the roster", async () => {
     listClusters
       .mockResolvedValueOnce([])
       .mockResolvedValueOnce([cluster({ id: "c1", displayName: "new-cluster" })]);
@@ -106,11 +107,37 @@ describe("ClusterDashboard", () => {
 
     await screen.findByText(/no clusters registered yet/i);
 
+    await userEvent.click(screen.getByRole("button", { name: /add cluster/i }));
     await userEvent.type(screen.getByLabelText(/kubeconfig/i), "apiVersion: v1");
     await userEvent.click(screen.getByRole("button", { name: /register cluster/i }));
 
     expect(await screen.findByText("new-cluster")).toBeInTheDocument();
     expect(registerCluster).toHaveBeenCalledWith(expect.objectContaining({ kubeconfig: "apiVersion: v1" }));
+    expect(screen.queryByLabelText(/kubeconfig/i)).not.toBeInTheDocument();
+  });
+
+  it("filters the roster by name or context without touching the registered set", async () => {
+    listClusters.mockResolvedValue([
+      cluster({ id: "c1", displayName: "prod", context: "prod-ctx" }),
+      cluster({ id: "c2", displayName: "staging", context: "stg-ctx" }),
+    ]);
+    renderDashboard();
+
+    await screen.findByText("prod");
+    await userEvent.type(screen.getByLabelText(/search clusters/i), "stg");
+
+    expect(screen.queryByText("prod")).not.toBeInTheDocument();
+    expect(screen.getByText("staging")).toBeInTheDocument();
+  });
+
+  it("distinguishes no-matches from no-clusters-at-all in the empty state", async () => {
+    listClusters.mockResolvedValue([cluster({ id: "c1", displayName: "prod" })]);
+    renderDashboard();
+
+    await screen.findByText("prod");
+    await userEvent.type(screen.getByLabelText(/search clusters/i), "nothing-matches-this");
+
+    expect(await screen.findByText(/no clusters match your search/i)).toBeInTheDocument();
   });
 
   it("removing a cluster from its detail panel clears the selection", async () => {

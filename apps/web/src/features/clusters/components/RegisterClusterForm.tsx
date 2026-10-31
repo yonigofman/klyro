@@ -2,6 +2,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { Button } from "#/components/ui/button";
+import { Input } from "#/components/ui/input";
 import { useRegisterCluster } from "#/features/clusters/queries";
 
 const registerClusterSchema = z.object({
@@ -12,7 +13,7 @@ const registerClusterSchema = z.object({
 
 type RegisterClusterFormValues = z.infer<typeof registerClusterSchema>;
 
-export function RegisterClusterForm() {
+export function RegisterClusterForm({ onSuccess }: { onSuccess?: () => void }) {
   const registerCluster = useRegisterCluster();
   const {
     register,
@@ -31,20 +32,25 @@ export function RegisterClusterForm() {
         context: values.context || undefined,
         displayName: values.displayName || undefined,
       },
-      { onSuccess: () => reset() },
+      {
+        onSuccess: () => {
+          reset();
+          onSuccess?.();
+        },
+      },
     );
   });
 
   return (
-    <form onSubmit={onSubmit} className="flex flex-col gap-3 border border-border bg-card p-4">
-      <div className="flex flex-col gap-1">
+    <form onSubmit={onSubmit} className="flex flex-col gap-4">
+      <div className="flex flex-col gap-1.5">
         <label htmlFor="kubeconfig" className="text-xs uppercase tracking-wide text-muted-foreground">
           Kubeconfig
         </label>
         <textarea
           id="kubeconfig"
-          rows={4}
-          className="w-full rounded-md border border-input bg-background p-2 font-mono text-xs"
+          rows={6}
+          className="w-full rounded-md border border-input bg-background p-2 font-mono text-xs text-foreground outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
           {...register("kubeconfig")}
         />
         {errors.kubeconfig && (
@@ -54,25 +60,17 @@ export function RegisterClusterForm() {
         )}
       </div>
       <div className="flex gap-3">
-        <div className="flex flex-1 flex-col gap-1">
+        <div className="flex flex-1 flex-col gap-1.5">
           <label htmlFor="context" className="text-xs uppercase tracking-wide text-muted-foreground">
             Context (optional)
           </label>
-          <input
-            id="context"
-            className="rounded-md border border-input bg-background p-2 text-sm"
-            {...register("context")}
-          />
+          <Input id="context" {...register("context")} />
         </div>
-        <div className="flex flex-1 flex-col gap-1">
+        <div className="flex flex-1 flex-col gap-1.5">
           <label htmlFor="displayName" className="text-xs uppercase tracking-wide text-muted-foreground">
             Display name (optional)
           </label>
-          <input
-            id="displayName"
-            className="rounded-md border border-input bg-background p-2 text-sm"
-            {...register("displayName")}
-          />
+          <Input id="displayName" {...register("displayName")} />
         </div>
       </div>
       {registerCluster.isError && (

@@ -16,7 +16,7 @@ export function ClusterDetailPanel({ cluster }: { cluster: Cluster }) {
         <h2 className="font-mono text-sm tracking-wide text-foreground">{cluster.displayName}</h2>
         <div className="flex items-center gap-2">
           <Button
-            variant="destructive"
+            variant="outline"
             size="sm"
             disabled={deleteCluster.isPending}
             onClick={() => {

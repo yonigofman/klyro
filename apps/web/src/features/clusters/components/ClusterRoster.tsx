@@ -47,7 +47,7 @@ export function ClusterRoster({ clusters }: { clusters: Cluster[] }) {
               <td className={cn("py-2", density === "dense" ? "py-1.5" : "py-3")}>
                 <StatusDot health={cluster.health} />
               </td>
-              <td className="py-2 font-medium text-foreground">{cluster.displayName}</td>
+              <td className="py-2 font-mono font-medium text-foreground">{cluster.displayName}</td>
               <td className="py-2 font-mono text-sm tabular-nums text-muted-foreground">
                 {cluster.context}
               </td>
