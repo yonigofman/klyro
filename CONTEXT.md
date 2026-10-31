@@ -44,8 +44,12 @@ A Namespace-scoped Resource that owns a Pod template and supports scale and rest
 _Avoid_: Using "workload" to include Pods
 
 **Summary**:
-A Resource as exposed in a list (e.g. `PodSummary`, `WorkloadSummary`): a curated set of fields chosen for triage at a glance, never the raw Kubernetes object. The same curation principle extends to **Detail** — a richer, still-curated view of one Resource (more fields than a Summary, e.g. full container specs, conditions, labels), used when drilling into a single Resource. Neither a Summary nor a Detail is ever the raw object — that's reserved for an explicit, later YAML-viewing feature, not implied by either term.
+A Resource as exposed in a list (e.g. `PodSummary`, `WorkloadSummary`): a curated set of fields chosen for triage at a glance, never the raw Kubernetes object. The same curation principle extends to **Detail** — a richer, still-curated view of one Resource (more fields than a Summary, e.g. full container specs, conditions, labels), used when drilling into a single Resource. Neither a Summary nor a Detail is ever the raw object.
 _Avoid_: DTO, view model (use Summary/Detail, the names already used in code)
+
+**Manifest**:
+The raw Kubernetes object for one Resource, serialized as YAML verbatim — the one deliberate exception to Summary/Detail's curation rule (see ADR 0003). Only ever shown for a Resource kind the "detail" surface already exposes; a Secret's Manifest must never be made viewable this way, since unlike Pods/Workloads/Services/Ingresses/Nodes a Secret's raw object contains credential material, not just references to it.
+_Avoid_: Raw view, YAML export (use Manifest, the name used in code and the API response field)
 
 **Ingress**:
 The standard Kubernetes Ingress object. "Route" (as in the roadmap's "Ingresses and Routes") is informal phrasing for the same object, not OpenShift's distinct `route.openshift.io` API — genuine OpenShift Route support is out of scope until explicitly committed.
