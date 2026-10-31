@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import type { RegisterClusterInput } from '@klyro/api-client'
+import type { RegisterClusterInput, WorkloadKind } from '@klyro/api-client'
 import { apiClient } from '#/lib/api-client'
 
 export const clustersQueryKey = ['clusters'] as const
@@ -108,5 +108,46 @@ export function useEvents(
     queryKey: ['clusters', clusterId, 'events', namespace ?? 'all'],
     queryFn: () => apiClient.listEvents(clusterId, namespace),
     enabled,
+  })
+}
+
+export function usePodDetail(clusterId: string, namespace: string, name: string) {
+  return useQuery({
+    queryKey: ['clusters', clusterId, 'pods', namespace, name],
+    queryFn: () => apiClient.getPod(clusterId, namespace, name),
+  })
+}
+
+export function useWorkloadDetail(
+  clusterId: string,
+  namespace: string,
+  kind: WorkloadKind,
+  name: string,
+) {
+  return useQuery({
+    queryKey: ['clusters', clusterId, 'workloads', namespace, kind, name],
+    queryFn: () => apiClient.getWorkload(clusterId, namespace, kind, name),
+  })
+}
+
+export function useServiceDetail(clusterId: string, namespace: string, name: string) {
+  return useQuery({
+    queryKey: ['clusters', clusterId, 'services', namespace, name],
+    queryFn: () => apiClient.getService(clusterId, namespace, name),
+  })
+}
+
+export function useIngressDetail(clusterId: string, namespace: string, name: string) {
+  return useQuery({
+    queryKey: ['clusters', clusterId, 'ingresses', namespace, name],
+    queryFn: () => apiClient.getIngress(clusterId, namespace, name),
+  })
+}
+
+/** Nodes are Cluster-scoped — there is no namespace to filter by. */
+export function useNodeDetail(clusterId: string, name: string) {
+  return useQuery({
+    queryKey: ['clusters', clusterId, 'nodes', name],
+    queryFn: () => apiClient.getNode(clusterId, name),
   })
 }

@@ -121,7 +121,7 @@ export function ClusterDetailPanel({ cluster }: { cluster: Cluster }) {
               </p>
             }
           >
-            {(pods) => <PodList pods={pods} />}
+            {(pods) => <PodList clusterId={cluster.id} pods={pods} />}
           </QueryState>
         )}
 
@@ -139,7 +139,9 @@ export function ClusterDetailPanel({ cluster }: { cluster: Cluster }) {
               </p>
             }
           >
-            {(workloads) => <WorkloadList workloads={workloads} />}
+            {(workloads) => (
+              <WorkloadList clusterId={cluster.id} workloads={workloads} />
+            )}
           </QueryState>
         )}
 
@@ -157,7 +159,9 @@ export function ClusterDetailPanel({ cluster }: { cluster: Cluster }) {
               </p>
             }
           >
-            {(services) => <ServiceList services={services} />}
+            {(services) => (
+              <ServiceList clusterId={cluster.id} services={services} />
+            )}
           </QueryState>
         )}
 
@@ -175,7 +179,9 @@ export function ClusterDetailPanel({ cluster }: { cluster: Cluster }) {
               </p>
             }
           >
-            {(ingresses) => <IngressList ingresses={ingresses} />}
+            {(ingresses) => (
+              <IngressList clusterId={cluster.id} ingresses={ingresses} />
+            )}
           </QueryState>
         )}
 
@@ -191,7 +197,7 @@ export function ClusterDetailPanel({ cluster }: { cluster: Cluster }) {
               </p>
             }
           >
-            {(nodes) => <NodeList nodes={nodes} />}
+            {(nodes) => <NodeList clusterId={cluster.id} nodes={nodes} />}
           </QueryState>
         )}
 

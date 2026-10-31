@@ -71,3 +71,71 @@ export interface EventSummary {
   count: number;
   lastSeen: string;
 }
+
+/** A Kubernetes condition — shared shape used by Pod and Node detail. */
+export interface ConditionSummary {
+  type: string;
+  status: string;
+}
+
+/** One container in a Pod's detail view. */
+export interface ContainerDetail {
+  name: string;
+  image: string;
+  ready: boolean;
+  restartCount: number;
+  cpuRequest: string;
+  cpuLimit: string;
+  memoryRequest: string;
+  memoryLimit: string;
+}
+
+/** PodSummary plus the fields only a single-resource view needs. Still
+ * curated — never the raw Pod object — per CONTEXT.md's Detail entry. */
+export interface PodDetail extends PodSummary {
+  containers: ContainerDetail[];
+  conditions: ConditionSummary[];
+}
+
+/** WorkloadSummary plus its update strategy and the Pods it owns. */
+export interface WorkloadDetail extends WorkloadSummary {
+  updateStrategy: string;
+  podNames: string[];
+}
+
+/** ServiceSummary plus its selector and endpoint addresses. A Service with
+ * no selector (e.g. type ExternalName) has a null selector, not an empty
+ * object — Go's nil map marshals to JSON null. */
+export interface ServiceDetail extends ServiceSummary {
+  selector: Record<string, string> | null;
+  endpoints: string[];
+}
+
+/** One host/path routing rule on an Ingress. */
+export interface IngressRuleDetail {
+  host: string;
+  path: string;
+  serviceName: string;
+  servicePort: string;
+}
+
+/** IngressSummary plus its backend rules and TLS hosts. */
+export interface IngressDetail extends IngressSummary {
+  rules: IngressRuleDetail[];
+  tlsHosts: string[];
+}
+
+/** A Node taint. */
+export interface TaintSummary {
+  key: string;
+  value: string;
+  effect: string;
+}
+
+/** NodeSummary plus capacity, allocatable resources, conditions, and taints. */
+export interface NodeDetail extends NodeSummary {
+  capacity: Record<string, string>;
+  allocatable: Record<string, string>;
+  conditions: ConditionSummary[];
+  taints: TaintSummary[];
+}

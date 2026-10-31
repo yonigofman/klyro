@@ -6,6 +6,7 @@ import (
 	"fmt"
 
 	corev1 "k8s.io/api/core/v1"
+	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/util/validation"
 
 	kube "github.com/yonigofman/klyro/services/api/internal/kubernetes"
@@ -14,6 +15,12 @@ import (
 // ErrClusterNotFound is returned when the given Cluster ID has no live
 // connection — either it was never registered or it was removed.
 var ErrClusterNotFound = errors.New("cluster not found")
+
+// ErrResourceNotFound is returned when the Cluster is known but the
+// requested resource doesn't exist in it — distinct from ErrClusterNotFound
+// so callers can tell "wrong cluster" from "resource no longer exists"
+// apart.
+var ErrResourceNotFound = errors.New("resource not found")
 
 // ErrInvalidNamespace is returned when a namespace filter isn't a
 // well-formed Kubernetes namespace name.
@@ -281,6 +288,292 @@ func (s *Service) ListEvents(ctx context.Context, clusterID, namespace string) (
 	return summaries, nil
 }
 
+// GetPod returns one Pod's Detail, or ErrResourceNotFound if it doesn't exist.
+func (s *Service) GetPod(ctx context.Context, clusterID, namespace, name string) (PodDetail, error) {
+	if err := validateNamespace(namespace); err != nil {
+		return PodDetail{}, err
+	}
+
+	client, err := s.clientFor(clusterID)
+	if err != nil {
+		return PodDetail{}, err
+	}
+
+	pod, err := client.GetPod(ctx, namespace, name)
+	if err != nil {
+		return PodDetail{}, mapGetError(err, "getting pod")
+	}
+
+	containers := make([]ContainerDetail, 0, len(pod.Spec.Containers))
+	for _, c := range pod.Spec.Containers {
+		status := containerStatusFor(c.Name, pod.Status.ContainerStatuses)
+		containers = append(containers, ContainerDetail{
+			Name:          c.Name,
+			Image:         c.Image,
+			Ready:         status.Ready,
+			RestartCount:  status.RestartCount,
+			CPURequest:    quantityString(c.Resources.Requests, corev1.ResourceCPU),
+			CPULimit:      quantityString(c.Resources.Limits, corev1.ResourceCPU),
+			MemoryRequest: quantityString(c.Resources.Requests, corev1.ResourceMemory),
+			MemoryLimit:   quantityString(c.Resources.Limits, corev1.ResourceMemory),
+		})
+	}
+
+	conditions := make([]ConditionSummary, 0, len(pod.Status.Conditions))
+	for _, cond := range pod.Status.Conditions {
+		conditions = append(conditions, ConditionSummary{Type: string(cond.Type), Status: string(cond.Status)})
+	}
+
+	return PodDetail{
+		PodSummary: PodSummary{
+			Name:      pod.Name,
+			Namespace: pod.Namespace,
+			Phase:     pod.Status.Phase,
+			Ready:     readyCount(pod.Status.ContainerStatuses),
+			Restarts:  restartCount(pod.Status.ContainerStatuses),
+			Node:      pod.Spec.NodeName,
+			CreatedAt: pod.CreationTimestamp.Time,
+		},
+		Containers: containers,
+		Conditions: conditions,
+	}, nil
+}
+
+// GetWorkload returns one Workload's Detail by kind and name, or
+// ErrResourceNotFound if it doesn't exist.
+func (s *Service) GetWorkload(ctx context.Context, clusterID, namespace string, kind WorkloadKind, name string) (WorkloadDetail, error) {
+	if err := validateNamespace(namespace); err != nil {
+		return WorkloadDetail{}, err
+	}
+
+	client, err := s.clientFor(clusterID)
+	if err != nil {
+		return WorkloadDetail{}, err
+	}
+
+	var (
+		summary  WorkloadSummary
+		strategy string
+		selector map[string]string
+	)
+
+	switch kind {
+	case WorkloadKindDeployment:
+		d, err := client.GetDeployment(ctx, namespace, name)
+		if err != nil {
+			return WorkloadDetail{}, mapGetError(err, "getting deployment")
+		}
+		desired := int32(1)
+		if d.Spec.Replicas != nil {
+			desired = *d.Spec.Replicas
+		}
+		summary = WorkloadSummary{Kind: kind, Name: d.Name, Namespace: d.Namespace, Desired: desired, Ready: d.Status.ReadyReplicas, CreatedAt: d.CreationTimestamp.Time}
+		strategy = string(d.Spec.Strategy.Type)
+		if d.Spec.Selector != nil {
+			selector = d.Spec.Selector.MatchLabels
+		}
+	case WorkloadKindStatefulSet:
+		ss, err := client.GetStatefulSet(ctx, namespace, name)
+		if err != nil {
+			return WorkloadDetail{}, mapGetError(err, "getting statefulset")
+		}
+		desired := int32(1)
+		if ss.Spec.Replicas != nil {
+			desired = *ss.Spec.Replicas
+		}
+		summary = WorkloadSummary{Kind: kind, Name: ss.Name, Namespace: ss.Namespace, Desired: desired, Ready: ss.Status.ReadyReplicas, CreatedAt: ss.CreationTimestamp.Time}
+		strategy = string(ss.Spec.UpdateStrategy.Type)
+		if ss.Spec.Selector != nil {
+			selector = ss.Spec.Selector.MatchLabels
+		}
+	case WorkloadKindDaemonSet:
+		ds, err := client.GetDaemonSet(ctx, namespace, name)
+		if err != nil {
+			return WorkloadDetail{}, mapGetError(err, "getting daemonset")
+		}
+		summary = WorkloadSummary{Kind: kind, Name: ds.Name, Namespace: ds.Namespace, Desired: ds.Status.DesiredNumberScheduled, Ready: ds.Status.NumberReady, CreatedAt: ds.CreationTimestamp.Time}
+		strategy = string(ds.Spec.UpdateStrategy.Type)
+		if ds.Spec.Selector != nil {
+			selector = ds.Spec.Selector.MatchLabels
+		}
+	default:
+		return WorkloadDetail{}, fmt.Errorf("unknown workload kind %q", kind)
+	}
+
+	podNames := []string{}
+	if len(selector) > 0 {
+		pods, err := client.ListPodsMatchingLabels(ctx, namespace, selector)
+		if err != nil {
+			return WorkloadDetail{}, fmt.Errorf("listing owned pods: %w", err)
+		}
+		for _, pod := range pods {
+			podNames = append(podNames, pod.Name)
+		}
+	}
+
+	return WorkloadDetail{WorkloadSummary: summary, UpdateStrategy: strategy, PodNames: podNames}, nil
+}
+
+// GetService returns one Service's Detail, or ErrResourceNotFound if it
+// doesn't exist.
+func (s *Service) GetService(ctx context.Context, clusterID, namespace, name string) (ServiceDetail, error) {
+	if err := validateNamespace(namespace); err != nil {
+		return ServiceDetail{}, err
+	}
+
+	client, err := s.clientFor(clusterID)
+	if err != nil {
+		return ServiceDetail{}, err
+	}
+
+	svc, err := client.GetService(ctx, namespace, name)
+	if err != nil {
+		return ServiceDetail{}, mapGetError(err, "getting service")
+	}
+
+	ports := make([]string, 0, len(svc.Spec.Ports))
+	for _, p := range svc.Spec.Ports {
+		ports = append(ports, fmt.Sprintf("%d/%s", p.Port, p.Protocol))
+	}
+
+	endpoints := []string{}
+	if len(svc.Spec.Selector) > 0 {
+		pods, err := client.ListPodsMatchingLabels(ctx, namespace, svc.Spec.Selector)
+		if err != nil {
+			return ServiceDetail{}, fmt.Errorf("listing endpoint pods: %w", err)
+		}
+		for _, pod := range pods {
+			if pod.Status.PodIP != "" && podIsReady(pod) {
+				endpoints = append(endpoints, pod.Status.PodIP)
+			}
+		}
+	}
+
+	return ServiceDetail{
+		ServiceSummary: ServiceSummary{
+			Name: svc.Name, Namespace: svc.Namespace, Type: svc.Spec.Type,
+			ClusterIP: svc.Spec.ClusterIP, Ports: ports, CreatedAt: svc.CreationTimestamp.Time,
+		},
+		Selector:  svc.Spec.Selector,
+		Endpoints: endpoints,
+	}, nil
+}
+
+// GetIngress returns one Ingress's Detail, or ErrResourceNotFound if it
+// doesn't exist.
+func (s *Service) GetIngress(ctx context.Context, clusterID, namespace, name string) (IngressDetail, error) {
+	if err := validateNamespace(namespace); err != nil {
+		return IngressDetail{}, err
+	}
+
+	client, err := s.clientFor(clusterID)
+	if err != nil {
+		return IngressDetail{}, err
+	}
+
+	ing, err := client.GetIngress(ctx, namespace, name)
+	if err != nil {
+		return IngressDetail{}, mapGetError(err, "getting ingress")
+	}
+
+	hosts := make([]string, 0, len(ing.Spec.Rules))
+	rules := []IngressRuleDetail{}
+	for _, rule := range ing.Spec.Rules {
+		if rule.Host != "" {
+			hosts = append(hosts, rule.Host)
+		}
+		if rule.HTTP == nil {
+			continue
+		}
+		for _, path := range rule.HTTP.Paths {
+			rules = append(rules, IngressRuleDetail{
+				Host:        rule.Host,
+				Path:        path.Path,
+				ServiceName: path.Backend.Service.Name,
+				ServicePort: fmt.Sprintf("%d", path.Backend.Service.Port.Number),
+			})
+		}
+	}
+
+	tlsHosts := []string{}
+	for _, tls := range ing.Spec.TLS {
+		tlsHosts = append(tlsHosts, tls.Hosts...)
+	}
+
+	return IngressDetail{
+		IngressSummary: IngressSummary{Name: ing.Name, Namespace: ing.Namespace, Hosts: hosts, CreatedAt: ing.CreationTimestamp.Time},
+		Rules:          rules,
+		TLSHosts:       tlsHosts,
+	}, nil
+}
+
+// GetNode returns one Node's Detail, or ErrResourceNotFound if it doesn't
+// exist. Nodes are Cluster-scoped — there is no namespace to filter by.
+func (s *Service) GetNode(ctx context.Context, clusterID, name string) (NodeDetail, error) {
+	client, err := s.clientFor(clusterID)
+	if err != nil {
+		return NodeDetail{}, err
+	}
+
+	node, err := client.GetNode(ctx, name)
+	if err != nil {
+		return NodeDetail{}, mapGetError(err, "getting node")
+	}
+
+	capacity := map[string]string{}
+	for k, v := range node.Status.Capacity {
+		capacity[string(k)] = v.String()
+	}
+	allocatable := map[string]string{}
+	for k, v := range node.Status.Allocatable {
+		allocatable[string(k)] = v.String()
+	}
+
+	conditions := make([]ConditionSummary, 0, len(node.Status.Conditions))
+	for _, cond := range node.Status.Conditions {
+		conditions = append(conditions, ConditionSummary{Type: string(cond.Type), Status: string(cond.Status)})
+	}
+
+	taints := make([]TaintSummary, 0, len(node.Spec.Taints))
+	for _, t := range node.Spec.Taints {
+		taints = append(taints, TaintSummary{Key: t.Key, Value: t.Value, Effect: string(t.Effect)})
+	}
+
+	return NodeDetail{
+		NodeSummary: NodeSummary{
+			Name: node.Name, Ready: nodeIsReady(*node), KubernetesVersion: node.Status.NodeInfo.KubeletVersion,
+			CreatedAt: node.CreationTimestamp.Time,
+		},
+		Capacity:    capacity,
+		Allocatable: allocatable,
+		Conditions:  conditions,
+		Taints:      taints,
+	}, nil
+}
+
+func mapGetError(err error, context string) error {
+	if k8serrors.IsNotFound(err) {
+		return ErrResourceNotFound
+	}
+	return fmt.Errorf("%s: %w", context, err)
+}
+
+func containerStatusFor(name string, statuses []corev1.ContainerStatus) corev1.ContainerStatus {
+	for _, status := range statuses {
+		if status.Name == name {
+			return status
+		}
+	}
+	return corev1.ContainerStatus{}
+}
+
+func quantityString(list corev1.ResourceList, name corev1.ResourceName) string {
+	if q, ok := list[name]; ok {
+		return q.String()
+	}
+	return ""
+}
+
 func validateNamespace(namespace string) error {
 	if namespace == "" {
 		return nil
@@ -289,6 +582,15 @@ func validateNamespace(namespace string) error {
 		return ErrInvalidNamespace
 	}
 	return nil
+}
+
+func podIsReady(pod corev1.Pod) bool {
+	for _, condition := range pod.Status.Conditions {
+		if condition.Type == corev1.PodReady {
+			return condition.Status == corev1.ConditionTrue
+		}
+	}
+	return false
 }
 
 func nodeIsReady(node corev1.Node) bool {

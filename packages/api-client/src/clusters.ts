@@ -1,10 +1,16 @@
 import type {
   EventSummary,
+  IngressDetail,
   IngressSummary,
   NamespaceSummary,
+  NodeDetail,
   NodeSummary,
+  PodDetail,
   PodSummary,
+  ServiceDetail,
   ServiceSummary,
+  WorkloadDetail,
+  WorkloadKind,
   WorkloadSummary,
 } from "./resources";
 
@@ -65,6 +71,11 @@ export interface ApiClient {
   listNodes(clusterId: string): Promise<NodeSummary[]>;
   /** namespace omitted or "" lists Events across all namespaces. */
   listEvents(clusterId: string, namespace?: string): Promise<EventSummary[]>;
+  getPod(clusterId: string, namespace: string, name: string): Promise<PodDetail>;
+  getWorkload(clusterId: string, namespace: string, kind: WorkloadKind, name: string): Promise<WorkloadDetail>;
+  getService(clusterId: string, namespace: string, name: string): Promise<ServiceDetail>;
+  getIngress(clusterId: string, namespace: string, name: string): Promise<IngressDetail>;
+  getNode(clusterId: string, name: string): Promise<NodeDetail>;
 }
 
 export function createApiClient(options: ApiClientOptions): ApiClient {
@@ -129,5 +140,23 @@ export function createApiClient(options: ApiClientOptions): ApiClient {
       request<EventSummary[]>(
         `/api/v1/clusters/${encodeURIComponent(clusterId)}/events${namespaceQuery(namespace)}`,
       ),
+    getPod: (clusterId, namespace, name) =>
+      request<PodDetail>(
+        `/api/v1/clusters/${encodeURIComponent(clusterId)}/pods/${encodeURIComponent(namespace)}/${encodeURIComponent(name)}`,
+      ),
+    getWorkload: (clusterId, namespace, kind, name) =>
+      request<WorkloadDetail>(
+        `/api/v1/clusters/${encodeURIComponent(clusterId)}/workloads/${encodeURIComponent(namespace)}/${encodeURIComponent(kind)}/${encodeURIComponent(name)}`,
+      ),
+    getService: (clusterId, namespace, name) =>
+      request<ServiceDetail>(
+        `/api/v1/clusters/${encodeURIComponent(clusterId)}/services/${encodeURIComponent(namespace)}/${encodeURIComponent(name)}`,
+      ),
+    getIngress: (clusterId, namespace, name) =>
+      request<IngressDetail>(
+        `/api/v1/clusters/${encodeURIComponent(clusterId)}/ingresses/${encodeURIComponent(namespace)}/${encodeURIComponent(name)}`,
+      ),
+    getNode: (clusterId, name) =>
+      request<NodeDetail>(`/api/v1/clusters/${encodeURIComponent(clusterId)}/nodes/${encodeURIComponent(name)}`),
   };
 }

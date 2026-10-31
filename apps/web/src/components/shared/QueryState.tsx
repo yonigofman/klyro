@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react'
 import type { UseQueryResult } from '@tanstack/react-query'
+import { ApiError } from '@klyro/api-client'
 
 /**
  * Renders a TanStack Query result's loading/error/empty/loaded states
@@ -12,6 +13,7 @@ export function QueryState<T>({
   skeleton,
   isEmpty,
   empty,
+  notFoundLabel,
   children,
 }: {
   query: UseQueryResult<T>
@@ -20,6 +22,8 @@ export function QueryState<T>({
   skeleton?: ReactNode
   isEmpty?: (data: T) => boolean
   empty?: ReactNode
+  /** Shown instead of the generic error text when the error is a 404 ApiError. */
+  notFoundLabel?: string
   children: (data: T) => ReactNode
 }) {
   if (query.isPending) {
@@ -33,6 +37,13 @@ export function QueryState<T>({
   }
 
   if (query.isError) {
+    if (notFoundLabel && query.error instanceof ApiError && query.error.status === 404) {
+      return (
+        <p role="status" className="text-sm text-muted-foreground">
+          {notFoundLabel}
+        </p>
+      )
+    }
     return (
       <p role="alert" className="text-sm text-destructive">
         {query.error.message}

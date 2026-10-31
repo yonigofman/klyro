@@ -101,3 +101,77 @@ type EventSummary struct {
 	Count              int32
 	LastSeen           time.Time
 }
+
+// ConditionSummary is a curated view of a Kubernetes condition (shared by
+// Pod and Node detail — both have a Conditions list of the same shape).
+type ConditionSummary struct {
+	Type   string
+	Status string
+}
+
+// ContainerDetail is a curated view of one container in a Pod.
+type ContainerDetail struct {
+	Name          string
+	Image         string
+	Ready         bool
+	RestartCount  int32
+	CPURequest    string
+	CPULimit      string
+	MemoryRequest string
+	MemoryLimit   string
+}
+
+// PodDetail is PodSummary plus the fields only a single-resource view needs.
+// Still curated — never the raw Pod object — per CONTEXT.md's Detail entry.
+type PodDetail struct {
+	PodSummary
+	Containers []ContainerDetail
+	Conditions []ConditionSummary
+}
+
+// WorkloadDetail is WorkloadSummary plus its update strategy and the names
+// of the Pods it owns (matched by label selector).
+type WorkloadDetail struct {
+	WorkloadSummary
+	UpdateStrategy string
+	PodNames       []string
+}
+
+// ServiceDetail is ServiceSummary plus its selector and endpoint addresses.
+type ServiceDetail struct {
+	ServiceSummary
+	Selector  map[string]string
+	Endpoints []string
+}
+
+// IngressRuleDetail is one host/path routing rule on an Ingress.
+type IngressRuleDetail struct {
+	Host        string
+	Path        string
+	ServiceName string
+	ServicePort string
+}
+
+// IngressDetail is IngressSummary plus its backend rules and TLS hosts.
+type IngressDetail struct {
+	IngressSummary
+	Rules    []IngressRuleDetail
+	TLSHosts []string
+}
+
+// TaintSummary is a curated view of a Node taint.
+type TaintSummary struct {
+	Key    string
+	Value  string
+	Effect string
+}
+
+// NodeDetail is NodeSummary plus capacity, allocatable resources,
+// conditions, and taints.
+type NodeDetail struct {
+	NodeSummary
+	Capacity    map[string]string
+	Allocatable map[string]string
+	Conditions  []ConditionSummary
+	Taints      []TaintSummary
+}

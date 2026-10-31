@@ -118,6 +118,11 @@ describe('ClusterDetailPanel', () => {
     expect(
       screen.getByRole('option', { name: 'old-stuff (Terminating)' }),
     ).toBeInTheDocument()
+
+    expect(screen.getByRole('link', { name: 'web-1' })).toHaveAttribute(
+      'href',
+      '/clusters/c1/pods/default/web-1',
+    )
   })
 
   it('shows loading and error states for namespaces and pods independently', async () => {
@@ -190,6 +195,10 @@ describe('ClusterDetailPanel', () => {
     const row = (await screen.findByText('web')).closest('tr')!
     expect(within(row).getByText('Deployment')).toBeInTheDocument()
     expect(within(row).getByText('2/3')).toBeInTheDocument()
+    expect(within(row).getByRole('link', { name: 'web' })).toHaveAttribute(
+      'href',
+      '/clusters/c1/workloads/default/Deployment/web',
+    )
   })
 
   it('shows the Services tab with type, cluster IP, and ports', async () => {
@@ -211,6 +220,10 @@ describe('ClusterDetailPanel', () => {
     expect(within(row).getByText('ClusterIP')).toBeInTheDocument()
     expect(within(row).getByText('10.0.0.1')).toBeInTheDocument()
     expect(within(row).getByText('80/TCP')).toBeInTheDocument()
+    expect(within(row).getByRole('link', { name: 'web' })).toHaveAttribute(
+      'href',
+      '/clusters/c1/services/default/web',
+    )
   })
 
   it('shows the Ingresses tab with routed hosts', async () => {
@@ -227,6 +240,10 @@ describe('ClusterDetailPanel', () => {
     await userEvent.click(await screen.findByRole('tab', { name: 'Ingresses' }))
 
     expect(await screen.findByText('web.example.com')).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'web' })).toHaveAttribute(
+      'href',
+      '/clusters/c1/ingresses/default/web',
+    )
   })
 
   it('shows the Nodes tab and hides the namespace filter', async () => {
@@ -244,6 +261,10 @@ describe('ClusterDetailPanel', () => {
 
     const row = (await screen.findByText('node-a')).closest('tr')!
     expect(within(row).getByText('Ready')).toBeInTheDocument()
+    expect(within(row).getByRole('link', { name: 'node-a' })).toHaveAttribute(
+      'href',
+      '/clusters/c1/nodes/node-a',
+    )
     expect(
       screen.queryByRole('combobox', { name: /filter by namespace/i }),
     ).not.toBeInTheDocument()

@@ -10,33 +10,107 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as ClustersClusterIdNodesNameRouteImport } from './routes/clusters.$clusterId.nodes.$name'
+import { Route as ClustersClusterIdIngressesNamespaceNameRouteImport } from './routes/clusters.$clusterId.ingresses.$namespace.$name'
+import { Route as ClustersClusterIdPodsNamespaceNameRouteImport } from './routes/clusters.$clusterId.pods.$namespace.$name'
+import { Route as ClustersClusterIdServicesNamespaceNameRouteImport } from './routes/clusters.$clusterId.services.$namespace.$name'
+import { Route as ClustersClusterIdWorkloadsNamespaceKindNameRouteImport } from './routes/clusters.$clusterId.workloads.$namespace.$kind.$name'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ClustersClusterIdNodesNameRoute =
+  ClustersClusterIdNodesNameRouteImport.update({
+    id: '/clusters/$clusterId/nodes/$name',
+    path: '/clusters/$clusterId/nodes/$name',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ClustersClusterIdIngressesNamespaceNameRoute =
+  ClustersClusterIdIngressesNamespaceNameRouteImport.update({
+    id: '/clusters/$clusterId/ingresses/$namespace/$name',
+    path: '/clusters/$clusterId/ingresses/$namespace/$name',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ClustersClusterIdPodsNamespaceNameRoute =
+  ClustersClusterIdPodsNamespaceNameRouteImport.update({
+    id: '/clusters/$clusterId/pods/$namespace/$name',
+    path: '/clusters/$clusterId/pods/$namespace/$name',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ClustersClusterIdServicesNamespaceNameRoute =
+  ClustersClusterIdServicesNamespaceNameRouteImport.update({
+    id: '/clusters/$clusterId/services/$namespace/$name',
+    path: '/clusters/$clusterId/services/$namespace/$name',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ClustersClusterIdWorkloadsNamespaceKindNameRoute =
+  ClustersClusterIdWorkloadsNamespaceKindNameRouteImport.update({
+    id: '/clusters/$clusterId/workloads/$namespace/$kind/$name',
+    path: '/clusters/$clusterId/workloads/$namespace/$kind/$name',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/clusters/$clusterId/nodes/$name': typeof ClustersClusterIdNodesNameRoute
+  '/clusters/$clusterId/ingresses/$namespace/$name': typeof ClustersClusterIdIngressesNamespaceNameRoute
+  '/clusters/$clusterId/pods/$namespace/$name': typeof ClustersClusterIdPodsNamespaceNameRoute
+  '/clusters/$clusterId/services/$namespace/$name': typeof ClustersClusterIdServicesNamespaceNameRoute
+  '/clusters/$clusterId/workloads/$namespace/$kind/$name': typeof ClustersClusterIdWorkloadsNamespaceKindNameRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/clusters/$clusterId/nodes/$name': typeof ClustersClusterIdNodesNameRoute
+  '/clusters/$clusterId/ingresses/$namespace/$name': typeof ClustersClusterIdIngressesNamespaceNameRoute
+  '/clusters/$clusterId/pods/$namespace/$name': typeof ClustersClusterIdPodsNamespaceNameRoute
+  '/clusters/$clusterId/services/$namespace/$name': typeof ClustersClusterIdServicesNamespaceNameRoute
+  '/clusters/$clusterId/workloads/$namespace/$kind/$name': typeof ClustersClusterIdWorkloadsNamespaceKindNameRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/clusters/$clusterId/nodes/$name': typeof ClustersClusterIdNodesNameRoute
+  '/clusters/$clusterId/ingresses/$namespace/$name': typeof ClustersClusterIdIngressesNamespaceNameRoute
+  '/clusters/$clusterId/pods/$namespace/$name': typeof ClustersClusterIdPodsNamespaceNameRoute
+  '/clusters/$clusterId/services/$namespace/$name': typeof ClustersClusterIdServicesNamespaceNameRoute
+  '/clusters/$clusterId/workloads/$namespace/$kind/$name': typeof ClustersClusterIdWorkloadsNamespaceKindNameRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/'
+  fullPaths:
+    | '/'
+    | '/clusters/$clusterId/nodes/$name'
+    | '/clusters/$clusterId/ingresses/$namespace/$name'
+    | '/clusters/$clusterId/pods/$namespace/$name'
+    | '/clusters/$clusterId/services/$namespace/$name'
+    | '/clusters/$clusterId/workloads/$namespace/$kind/$name'
   fileRoutesByTo: FileRoutesByTo
-  to: '/'
-  id: '__root__' | '/'
+  to:
+    | '/'
+    | '/clusters/$clusterId/nodes/$name'
+    | '/clusters/$clusterId/ingresses/$namespace/$name'
+    | '/clusters/$clusterId/pods/$namespace/$name'
+    | '/clusters/$clusterId/services/$namespace/$name'
+    | '/clusters/$clusterId/workloads/$namespace/$kind/$name'
+  id:
+    | '__root__'
+    | '/'
+    | '/clusters/$clusterId/nodes/$name'
+    | '/clusters/$clusterId/ingresses/$namespace/$name'
+    | '/clusters/$clusterId/pods/$namespace/$name'
+    | '/clusters/$clusterId/services/$namespace/$name'
+    | '/clusters/$clusterId/workloads/$namespace/$kind/$name'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  ClustersClusterIdNodesNameRoute: typeof ClustersClusterIdNodesNameRoute
+  ClustersClusterIdIngressesNamespaceNameRoute: typeof ClustersClusterIdIngressesNamespaceNameRoute
+  ClustersClusterIdPodsNamespaceNameRoute: typeof ClustersClusterIdPodsNamespaceNameRoute
+  ClustersClusterIdServicesNamespaceNameRoute: typeof ClustersClusterIdServicesNamespaceNameRoute
+  ClustersClusterIdWorkloadsNamespaceKindNameRoute: typeof ClustersClusterIdWorkloadsNamespaceKindNameRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -48,11 +122,55 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/clusters/$clusterId/nodes/$name': {
+      id: '/clusters/$clusterId/nodes/$name'
+      path: '/clusters/$clusterId/nodes/$name'
+      fullPath: '/clusters/$clusterId/nodes/$name'
+      preLoaderRoute: typeof ClustersClusterIdNodesNameRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/clusters/$clusterId/ingresses/$namespace/$name': {
+      id: '/clusters/$clusterId/ingresses/$namespace/$name'
+      path: '/clusters/$clusterId/ingresses/$namespace/$name'
+      fullPath: '/clusters/$clusterId/ingresses/$namespace/$name'
+      preLoaderRoute: typeof ClustersClusterIdIngressesNamespaceNameRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/clusters/$clusterId/pods/$namespace/$name': {
+      id: '/clusters/$clusterId/pods/$namespace/$name'
+      path: '/clusters/$clusterId/pods/$namespace/$name'
+      fullPath: '/clusters/$clusterId/pods/$namespace/$name'
+      preLoaderRoute: typeof ClustersClusterIdPodsNamespaceNameRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/clusters/$clusterId/services/$namespace/$name': {
+      id: '/clusters/$clusterId/services/$namespace/$name'
+      path: '/clusters/$clusterId/services/$namespace/$name'
+      fullPath: '/clusters/$clusterId/services/$namespace/$name'
+      preLoaderRoute: typeof ClustersClusterIdServicesNamespaceNameRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/clusters/$clusterId/workloads/$namespace/$kind/$name': {
+      id: '/clusters/$clusterId/workloads/$namespace/$kind/$name'
+      path: '/clusters/$clusterId/workloads/$namespace/$kind/$name'
+      fullPath: '/clusters/$clusterId/workloads/$namespace/$kind/$name'
+      preLoaderRoute: typeof ClustersClusterIdWorkloadsNamespaceKindNameRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  ClustersClusterIdNodesNameRoute: ClustersClusterIdNodesNameRoute,
+  ClustersClusterIdIngressesNamespaceNameRoute:
+    ClustersClusterIdIngressesNamespaceNameRoute,
+  ClustersClusterIdPodsNamespaceNameRoute:
+    ClustersClusterIdPodsNamespaceNameRoute,
+  ClustersClusterIdServicesNamespaceNameRoute:
+    ClustersClusterIdServicesNamespaceNameRoute,
+  ClustersClusterIdWorkloadsNamespaceKindNameRoute:
+    ClustersClusterIdWorkloadsNamespaceKindNameRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

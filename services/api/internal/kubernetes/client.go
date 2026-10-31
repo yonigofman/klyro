@@ -7,6 +7,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/client-go/kubernetes"
 )
 
@@ -115,4 +116,57 @@ func (c *Client) ListEvents(ctx context.Context, namespace string) ([]corev1.Eve
 		return nil, err
 	}
 	return list.Items, nil
+}
+
+// GetPod returns one Pod by name, or a Kubernetes not-found error.
+func (c *Client) GetPod(ctx context.Context, namespace, name string) (*corev1.Pod, error) {
+	return c.clientset.CoreV1().Pods(namespace).Get(ctx, name, metav1.GetOptions{})
+}
+
+// GetDeployment returns one Deployment by name, or a Kubernetes not-found error.
+func (c *Client) GetDeployment(ctx context.Context, namespace, name string) (*appsv1.Deployment, error) {
+	return c.clientset.AppsV1().Deployments(namespace).Get(ctx, name, metav1.GetOptions{})
+}
+
+// GetStatefulSet returns one StatefulSet by name, or a Kubernetes not-found error.
+func (c *Client) GetStatefulSet(ctx context.Context, namespace, name string) (*appsv1.StatefulSet, error) {
+	return c.clientset.AppsV1().StatefulSets(namespace).Get(ctx, name, metav1.GetOptions{})
+}
+
+// GetDaemonSet returns one DaemonSet by name, or a Kubernetes not-found error.
+func (c *Client) GetDaemonSet(ctx context.Context, namespace, name string) (*appsv1.DaemonSet, error) {
+	return c.clientset.AppsV1().DaemonSets(namespace).Get(ctx, name, metav1.GetOptions{})
+}
+
+// GetService returns one Service by name, or a Kubernetes not-found error.
+func (c *Client) GetService(ctx context.Context, namespace, name string) (*corev1.Service, error) {
+	return c.clientset.CoreV1().Services(namespace).Get(ctx, name, metav1.GetOptions{})
+}
+
+// GetIngress returns one Ingress by name, or a Kubernetes not-found error.
+func (c *Client) GetIngress(ctx context.Context, namespace, name string) (*networkingv1.Ingress, error) {
+	return c.clientset.NetworkingV1().Ingresses(namespace).Get(ctx, name, metav1.GetOptions{})
+}
+
+// GetNode returns one Node by name, or a Kubernetes not-found error.
+func (c *Client) GetNode(ctx context.Context, name string) (*corev1.Node, error) {
+	return c.clientset.CoreV1().Nodes().Get(ctx, name, metav1.GetOptions{})
+}
+
+// ListPodsMatchingLabels returns every Pod in namespace whose labels match
+// selector — used to find the Pods a Workload owns without leaking
+// label-selector matching (a client-go concern) outside this package.
+func (c *Client) ListPodsMatchingLabels(ctx context.Context, namespace string, selector map[string]string) ([]corev1.Pod, error) {
+	pods, err := c.ListPods(ctx, namespace)
+	if err != nil {
+		return nil, err
+	}
+	set := labels.SelectorFromSet(selector)
+	matched := make([]corev1.Pod, 0, len(pods))
+	for _, pod := range pods {
+		if set.Matches(labels.Set(pod.Labels)) {
+			matched = append(matched, pod)
+		}
+	}
+	return matched, nil
 }
