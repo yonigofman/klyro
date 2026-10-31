@@ -43,6 +43,10 @@ _Avoid_: Event, watch event (for this concept — "Event" is reserved for the k8
 A Namespace-scoped Resource that owns a Pod template and supports scale and restart: Deployment, StatefulSet, or DaemonSet. Bare Pods are not Workloads — they have no replica count or rollout semantics, so "restart" doesn't apply to them the same way.
 _Avoid_: Using "workload" to include Pods
 
+**Summary**:
+A Resource as exposed in a list (e.g. `PodSummary`, `WorkloadSummary`): a curated set of fields chosen for triage at a glance, never the raw Kubernetes object. The same curation principle extends to **Detail** — a richer, still-curated view of one Resource (more fields than a Summary, e.g. full container specs, conditions, labels), used when drilling into a single Resource. Neither a Summary nor a Detail is ever the raw object — that's reserved for an explicit, later YAML-viewing feature, not implied by either term.
+_Avoid_: DTO, view model (use Summary/Detail, the names already used in code)
+
 **Ingress**:
 The standard Kubernetes Ingress object. "Route" (as in the roadmap's "Ingresses and Routes") is informal phrasing for the same object, not OpenShift's distinct `route.openshift.io` API — genuine OpenShift Route support is out of scope until explicitly committed.
 _Avoid_: Route (as a separate resource kind)
