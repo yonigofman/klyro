@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 
 	corev1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
@@ -26,6 +27,12 @@ var ErrResourceNotFound = errors.New("resource not found")
 // ErrInvalidNamespace is returned when a namespace filter isn't a
 // well-formed Kubernetes namespace name.
 var ErrInvalidNamespace = errors.New("invalid namespace")
+
+// ErrInvalidContainer is returned when a log request's container name
+// doesn't resolve to exactly one container on the Pod — either it was
+// left out on a multi-container Pod, or it names a container the Pod
+// doesn't have.
+var ErrInvalidContainer = errors.New("invalid container")
 
 // ClusterClients is the narrow slice of internal/clusters.Service this
 // package depends on — just enough to reuse a Cluster's existing connection,
@@ -338,6 +345,51 @@ func (s *Service) GetPod(ctx context.Context, clusterID, namespace, name string)
 		Containers: containers,
 		Conditions: conditions,
 	}, nil
+}
+
+// StreamPodLogs returns a live, following log stream for one container in
+// a Pod. When the Pod has exactly one container, requestedContainer may be
+// "" and that container is used; otherwise requestedContainer must name
+// one of the Pod's containers. The caller must Close the returned stream.
+func (s *Service) StreamPodLogs(ctx context.Context, clusterID, namespace, name, requestedContainer string, tailLines int64) (io.ReadCloser, error) {
+	if err := validateNamespace(namespace); err != nil {
+		return nil, err
+	}
+
+	client, err := s.clientFor(clusterID)
+	if err != nil {
+		return nil, err
+	}
+
+	pod, err := client.GetPod(ctx, namespace, name)
+	if err != nil {
+		return nil, mapGetError(err, "getting pod")
+	}
+
+	container, err := resolveLogContainer(pod, requestedContainer)
+	if err != nil {
+		return nil, err
+	}
+
+	return client.StreamPodLogs(ctx, namespace, name, container, tailLines)
+}
+
+// resolveLogContainer picks which container a log request is for: the
+// Pod's only container when none was requested, or the requested one when
+// it names a container the Pod actually has.
+func resolveLogContainer(pod *corev1.Pod, requested string) (string, error) {
+	if requested == "" {
+		if len(pod.Spec.Containers) == 1 {
+			return pod.Spec.Containers[0].Name, nil
+		}
+		return "", ErrInvalidContainer
+	}
+	for _, c := range pod.Spec.Containers {
+		if c.Name == requested {
+			return requested, nil
+		}
+	}
+	return "", ErrInvalidContainer
 }
 
 // GetWorkload returns one Workload's Detail by kind and name, or

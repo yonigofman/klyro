@@ -76,6 +76,15 @@ export interface ApiClient {
   getService(clusterId: string, namespace: string, name: string): Promise<ServiceDetail>;
   getIngress(clusterId: string, namespace: string, name: string): Promise<IngressDetail>;
   getNode(clusterId: string, name: string): Promise<NodeDetail>;
+  /** Builds the SSE URL for a Pod's live log stream — not fetched here;
+   * callers open it directly with EventSource. `container` is required
+   * when the Pod has more than one container. */
+  podLogsUrl(
+    clusterId: string,
+    namespace: string,
+    name: string,
+    options?: { container?: string; tailLines?: number },
+  ): string;
   getPodManifest(clusterId: string, namespace: string, name: string): Promise<string>;
   getWorkloadManifest(clusterId: string, namespace: string, kind: WorkloadKind, name: string): Promise<string>;
   getServiceManifest(clusterId: string, namespace: string, name: string): Promise<string>;
@@ -163,6 +172,13 @@ export function createApiClient(options: ApiClientOptions): ApiClient {
       ),
     getNode: (clusterId, name) =>
       request<NodeDetail>(`/api/v1/clusters/${encodeURIComponent(clusterId)}/nodes/${encodeURIComponent(name)}`),
+    podLogsUrl: (clusterId, namespace, name, options) => {
+      const params = new URLSearchParams();
+      if (options?.container) params.set("container", options.container);
+      if (options?.tailLines !== undefined) params.set("tailLines", String(options.tailLines));
+      const query = params.size > 0 ? `?${params.toString()}` : "";
+      return `${baseUrl}/api/v1/clusters/${encodeURIComponent(clusterId)}/pods/${encodeURIComponent(namespace)}/${encodeURIComponent(name)}/logs${query}`;
+    },
     getPodManifest: (clusterId, namespace, name) =>
       request<ManifestResponse>(
         `/api/v1/clusters/${encodeURIComponent(clusterId)}/pods/${encodeURIComponent(namespace)}/${encodeURIComponent(name)}/manifest`,

@@ -2,6 +2,7 @@ package kubernetes
 
 import (
 	"context"
+	"io"
 
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -121,6 +122,17 @@ func (c *Client) ListEvents(ctx context.Context, namespace string) ([]corev1.Eve
 // GetPod returns one Pod by name, or a Kubernetes not-found error.
 func (c *Client) GetPod(ctx context.Context, namespace, name string) (*corev1.Pod, error) {
 	return c.clientset.CoreV1().Pods(namespace).Get(ctx, name, metav1.GetOptions{})
+}
+
+// StreamPodLogs returns a live, following stream of one container's log
+// output. The caller must Close the returned stream. tailLines of 0 means
+// no backlog cap is sent to the API server.
+func (c *Client) StreamPodLogs(ctx context.Context, namespace, name, container string, tailLines int64) (io.ReadCloser, error) {
+	opts := &corev1.PodLogOptions{Container: container, Follow: true}
+	if tailLines > 0 {
+		opts.TailLines = &tailLines
+	}
+	return c.clientset.CoreV1().Pods(namespace).GetLogs(name, opts).Stream(ctx)
 }
 
 // GetDeployment returns one Deployment by name, or a Kubernetes not-found error.

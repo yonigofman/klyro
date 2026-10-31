@@ -6,6 +6,7 @@ import { ResourceTable } from '#/components/shared/ResourceTable'
 import type { ResourceTableColumn } from '#/components/shared/ResourceTable'
 import { ManifestSection } from '#/components/shared/ManifestSection'
 import { ResourceEventsSection } from '#/components/shared/ResourceEventsSection'
+import { LogsSection } from '#/components/shared/LogsSection'
 import { Dot } from '#/components/shared/Dot'
 import { conditionHealth } from '#/features/clusters/health'
 import { usePodDetail, usePodManifest } from '#/features/clusters/queries'
@@ -105,6 +106,15 @@ export function PodDetailPage({
               namespace={namespace}
               kind="Pod"
               name={pod.name}
+            />
+          </DetailSection>
+
+          <DetailSection title="Logs">
+            <LogsSection
+              clusterId={clusterId}
+              namespace={namespace}
+              name={pod.name}
+              containers={pod.containers.map((container) => container.name)}
             />
           </DetailSection>
 

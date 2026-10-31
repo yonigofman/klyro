@@ -1,8 +1,13 @@
 package resources
 
 import (
+	"bufio"
+	"context"
 	"errors"
+	"fmt"
+	"io"
 	"net/http"
+	"strconv"
 	"time"
 
 	corev1 "k8s.io/api/core/v1"
@@ -37,6 +42,7 @@ func (h *Handler) Register(mux *http.ServeMux) {
 	mux.HandleFunc("GET /api/v1/clusters/{clusterId}/ingresses/{namespace}/{name}", h.getIngress)
 	mux.HandleFunc("GET /api/v1/clusters/{clusterId}/nodes/{name}", h.getNode)
 
+	mux.HandleFunc("GET /api/v1/clusters/{clusterId}/pods/{namespace}/{name}/logs", h.streamPodLogs)
 	mux.HandleFunc("GET /api/v1/clusters/{clusterId}/pods/{namespace}/{name}/manifest", h.getPodManifest)
 	mux.HandleFunc("GET /api/v1/clusters/{clusterId}/workloads/{namespace}/{kind}/{name}/manifest", h.getWorkloadManifest)
 	mux.HandleFunc("GET /api/v1/clusters/{clusterId}/services/{namespace}/{name}/manifest", h.getServiceManifest)
@@ -311,6 +317,99 @@ func (h *Handler) getPod(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+// defaultLogTailLines is sent to the Kubernetes API as the initial backlog
+// when a log request doesn't specify its own tailLines.
+const defaultLogTailLines = 200
+
+func (h *Handler) streamPodLogs(w http.ResponseWriter, r *http.Request) {
+	flusher, ok := w.(http.Flusher)
+	if !ok {
+		httputil.WriteError(w, http.StatusInternalServerError, "streaming unsupported")
+		return
+	}
+
+	tailLines := int64(defaultLogTailLines)
+	if raw := r.URL.Query().Get("tailLines"); raw != "" {
+		parsed, err := strconv.ParseInt(raw, 10, 64)
+		if err != nil || parsed < 0 {
+			httputil.WriteError(w, http.StatusBadRequest, "invalid tailLines")
+			return
+		}
+		tailLines = parsed
+	}
+
+	stream, err := h.service.StreamPodLogs(
+		r.Context(),
+		r.PathValue("clusterId"),
+		r.PathValue("namespace"),
+		r.PathValue("name"),
+		r.URL.Query().Get("container"),
+		tailLines,
+	)
+	if writeServiceError(w, err) {
+		return
+	}
+	defer stream.Close()
+
+	w.Header().Set("Content-Type", "text/event-stream")
+	w.Header().Set("Cache-Control", "no-cache")
+	w.Header().Set("Connection", "keep-alive")
+	w.WriteHeader(http.StatusOK)
+	flusher.Flush()
+
+	streamLines(r.Context(), w, flusher, stream)
+}
+
+// streamLines reads newline-delimited log output from r and writes each
+// line as an SSE "data" event until r hits EOF, scanning fails, or ctx is
+// done (the client disconnected) — whichever comes first. Split out from
+// streamPodLogs so the concurrency (the reader goroutine must not leak
+// past a client disconnect, even while blocked reading from a stream that
+// never otherwise ends) is unit-testable against a deliberately slow
+// io.Reader, not just the fake clientset's instantly-finished stub.
+func streamLines(ctx context.Context, w http.ResponseWriter, flusher http.Flusher, r io.Reader) {
+	lines := make(chan string)
+	readErr := make(chan error, 1)
+	go func() {
+		defer close(lines)
+		scanner := bufio.NewScanner(r)
+		scanner.Buffer(make([]byte, 0, 64*1024), 1024*1024)
+		for scanner.Scan() {
+			select {
+			case lines <- scanner.Text():
+			case <-ctx.Done():
+				return
+			}
+		}
+		readErr <- scanner.Err()
+	}()
+
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case line, ok := <-lines:
+			if !ok {
+				select {
+				case err := <-readErr:
+					if err != nil {
+						// Named "log-error", not "error" — the browser's
+						// EventSource reserves its own "error" event for
+						// connection-level failures, and a same-named SSE
+						// event would collide with that.
+						fmt.Fprintf(w, "event: log-error\ndata: %s\n\n", err.Error())
+						flusher.Flush()
+					}
+				default:
+				}
+				return
+			}
+			fmt.Fprintf(w, "data: %s\n\n", line)
+			flusher.Flush()
+		}
+	}
+}
+
 // parseWorkloadKind validates a path-supplied kind against the three kinds
 // Workload spans (see CONTEXT.md), reporting whether it's one of them.
 func parseWorkloadKind(raw string) (WorkloadKind, bool) {
@@ -497,6 +596,8 @@ func writeServiceError(w http.ResponseWriter, err error) bool {
 		httputil.WriteError(w, http.StatusNotFound, "resource not found")
 	case errors.Is(err, ErrInvalidNamespace):
 		httputil.WriteError(w, http.StatusBadRequest, "invalid namespace")
+	case errors.Is(err, ErrInvalidContainer):
+		httputil.WriteError(w, http.StatusBadRequest, "invalid container")
 	default:
 		httputil.WriteError(w, http.StatusBadGateway, err.Error())
 	}

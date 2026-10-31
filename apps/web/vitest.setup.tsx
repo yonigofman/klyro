@@ -15,6 +15,62 @@ if (typeof globalThis.ResizeObserver === 'undefined') {
   globalThis.ResizeObserver = ResizeObserverStub
 }
 
+// jsdom has no EventSource (the log viewer's live-tail transport, #7 — the
+// first SSE use in the app). A controllable fake lets tests drive
+// open/message/custom-event/error without a real HTTP connection; test
+// files reach a given hook's instance via `MockEventSource.instances`.
+type MockListener = (event: MessageEvent) => void
+
+export class MockEventSource {
+  static instances: MockEventSource[] = []
+  static readonly CONNECTING = 0
+  static readonly OPEN = 1
+  static readonly CLOSED = 2
+
+  url: string
+  readyState: number = MockEventSource.CONNECTING
+  onopen: (() => void) | null = null
+  onmessage: MockListener | null = null
+  onerror: (() => void) | null = null
+  private listeners: Record<string, MockListener[]> = {}
+
+  constructor(url: string) {
+    this.url = url
+    MockEventSource.instances.push(this)
+  }
+
+  addEventListener(type: string, handler: MockListener) {
+    ;(this.listeners[type] ??= []).push(handler)
+  }
+
+  removeEventListener(type: string, handler: MockListener) {
+    this.listeners[type] = (this.listeners[type] ?? []).filter((h) => h !== handler)
+  }
+
+  close() {
+    this.readyState = MockEventSource.CLOSED
+  }
+
+  // --- test-only helpers, not part of the real EventSource API ---
+  emitOpen() {
+    this.readyState = MockEventSource.OPEN
+    this.onopen?.()
+  }
+  emitMessage(data: string) {
+    this.onmessage?.({ data } as MessageEvent)
+  }
+  emitEvent(type: string, data: string) {
+    const handlers = this.listeners[type] ?? []
+    handlers.forEach((handler) => handler({ data } as MessageEvent))
+  }
+  emitError(readyState: number = MockEventSource.CONNECTING) {
+    this.readyState = readyState
+    this.onerror?.()
+  }
+}
+
+vi.stubGlobal('EventSource', MockEventSource)
+
 // Both Link and useNavigate need a real RouterProvider for their
 // href/navigate logic. Component tests render pages/panels in isolation
 // (not through the actual router), and aren't testing router navigation

@@ -1,20 +1,22 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { render, screen, within } from '@testing-library/react'
+import { act, render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { ApiError } from '@klyro/api-client'
 
-const { getPod, getPodManifest, listEvents } = vi.hoisted(() => ({
+const { getPod, getPodManifest, listEvents, podLogsUrl } = vi.hoisted(() => ({
   getPod: vi.fn(),
   getPodManifest: vi.fn(),
   listEvents: vi.fn(),
+  podLogsUrl: vi.fn(),
 }))
 
 vi.mock('#/lib/api-client', () => ({
-  apiClient: { getPod, getPodManifest, listEvents },
+  apiClient: { getPod, getPodManifest, listEvents, podLogsUrl },
 }))
 
 const { PodDetailPage } = await import('./clusters.$clusterId.pods.$namespace.$name')
+const { MockEventSource } = await import('../../vitest.setup')
 
 function renderPage() {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
@@ -29,6 +31,8 @@ beforeEach(() => {
   getPod.mockReset()
   getPodManifest.mockReset()
   listEvents.mockReset().mockResolvedValue([])
+  podLogsUrl.mockReset().mockReturnValue('http://test/logs')
+  MockEventSource.instances = []
 })
 
 describe('Pod detail page', () => {
@@ -137,5 +141,148 @@ describe('Pod detail page', () => {
     renderPage()
 
     expect(await screen.findByRole('alert')).toHaveTextContent('network down')
+  })
+
+  it('streams logs live by default, with no container selector for a single-container pod', async () => {
+    getPod.mockResolvedValue({
+      name: 'web-1',
+      namespace: 'default',
+      phase: 'Running',
+      ready: '1/1',
+      restarts: 0,
+      node: 'node-a',
+      createdAt: '2026-01-01T00:00:00Z',
+      containers: [{ name: 'web', image: 'nginx:1.25', ready: true, restartCount: 0 }],
+      conditions: [],
+    })
+
+    renderPage()
+    await screen.findByText('Logs')
+    expect(podLogsUrl).toHaveBeenCalledWith('c1', 'default', 'web-1', { container: undefined })
+    expect(screen.queryByRole('tablist')).not.toBeInTheDocument()
+
+    const source = MockEventSource.instances[0]
+    act(() => {
+      source.emitOpen()
+      source.emitMessage('starting up')
+      source.emitMessage('ready to serve')
+    })
+
+    expect(await screen.findByText('starting up')).toBeInTheDocument()
+    expect(screen.getByText('ready to serve')).toBeInTheDocument()
+    expect(screen.getByText('Live')).toBeInTheDocument()
+  })
+
+  it('pauses the stream, then resumes, without losing lines received while paused', async () => {
+    getPod.mockResolvedValue({
+      name: 'web-1',
+      namespace: 'default',
+      phase: 'Running',
+      ready: '1/1',
+      restarts: 0,
+      node: 'node-a',
+      createdAt: '2026-01-01T00:00:00Z',
+      containers: [{ name: 'web', image: 'nginx:1.25', ready: true, restartCount: 0 }],
+      conditions: [],
+    })
+
+    renderPage()
+    await screen.findByText('Logs')
+    const source = MockEventSource.instances[0]
+    act(() => {
+      source.emitOpen()
+      source.emitMessage('line one')
+    })
+
+    await userEvent.click(screen.getByText('Pause'))
+    expect(screen.getByText('Paused')).toBeInTheDocument()
+
+    act(() => {
+      source.emitMessage('line two')
+    })
+    // Paused freezes the view — the stream keeps receiving, but line two
+    // shouldn't appear on screen until Resume.
+    expect(screen.queryByText('line two')).not.toBeInTheDocument()
+
+    await userEvent.click(screen.getByText('Resume'))
+    expect(screen.getByText('Live')).toBeInTheDocument()
+    expect(await screen.findByText('line two')).toBeInTheDocument()
+  })
+
+  it('shows a container selector for a multi-container pod and reconnects on switch', async () => {
+    getPod.mockResolvedValue({
+      name: 'web-1',
+      namespace: 'default',
+      phase: 'Running',
+      ready: '2/2',
+      restarts: 0,
+      node: 'node-a',
+      createdAt: '2026-01-01T00:00:00Z',
+      containers: [
+        { name: 'web', image: 'nginx:1.25', ready: true, restartCount: 0 },
+        { name: 'sidecar', image: 'envoy:1.28', ready: true, restartCount: 0 },
+      ],
+      conditions: [],
+    })
+
+    renderPage()
+    await screen.findByText('Logs')
+    expect(podLogsUrl).toHaveBeenCalledWith('c1', 'default', 'web-1', { container: 'web' })
+
+    await userEvent.click(screen.getByRole('tab', { name: 'sidecar' }))
+
+    expect(podLogsUrl).toHaveBeenCalledWith('c1', 'default', 'web-1', { container: 'sidecar' })
+  })
+
+  it('shows a disconnected message when the stream fails permanently', async () => {
+    getPod.mockResolvedValue({
+      name: 'web-1',
+      namespace: 'default',
+      phase: 'Running',
+      ready: '1/1',
+      restarts: 0,
+      node: 'node-a',
+      createdAt: '2026-01-01T00:00:00Z',
+      containers: [{ name: 'web', image: 'nginx:1.25', ready: true, restartCount: 0 }],
+      conditions: [],
+    })
+
+    renderPage()
+    await screen.findByText('Logs')
+    const source = MockEventSource.instances[0]
+    act(() => {
+      source.emitError(MockEventSource.CLOSED)
+    })
+
+    expect(await screen.findByText('Disconnected')).toBeInTheDocument()
+  })
+
+  it('shows a disconnected message on a mid-stream upstream failure, not just a permanent connection failure', async () => {
+    getPod.mockResolvedValue({
+      name: 'web-1',
+      namespace: 'default',
+      phase: 'Running',
+      ready: '1/1',
+      restarts: 0,
+      node: 'node-a',
+      createdAt: '2026-01-01T00:00:00Z',
+      containers: [{ name: 'web', image: 'nginx:1.25', ready: true, restartCount: 0 }],
+      conditions: [],
+    })
+
+    renderPage()
+    await screen.findByText('Logs')
+    const source = MockEventSource.instances[0]
+    act(() => {
+      source.emitOpen()
+      // A real EventSource never reaches readyState CLOSED after a normal
+      // 200 SSE response ends — it just keeps auto-reconnecting. The
+      // backend's own "log-error" event is the only signal a mid-stream
+      // upstream failure (container crash, connection drop) actually has.
+      source.emitEvent('log-error', 'container crashed')
+    })
+
+    expect(await screen.findByText('Disconnected')).toBeInTheDocument()
+    expect(screen.getByRole('alert')).toHaveTextContent('container crashed')
   })
 })
