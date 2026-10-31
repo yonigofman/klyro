@@ -72,6 +72,18 @@ func (s *Service) Get(id string) (Cluster, error) {
 	return c, nil
 }
 
+// ClientFor returns the live kube.Client a Cluster was registered with, so
+// other packages (e.g. internal/resources) can read from it without
+// re-dialing or re-parsing a kubeconfig. Returns ErrNotFound for an unknown
+// Cluster ID.
+func (s *Service) ClientFor(id string) (*kube.Client, error) {
+	client, ok := s.store.getClient(id)
+	if !ok {
+		return nil, ErrNotFound
+	}
+	return client, nil
+}
+
 // Remove unregisters a Cluster by ID, or returns ErrNotFound.
 func (s *Service) Remove(id string) error {
 	if !s.store.delete(id) {
@@ -143,7 +155,7 @@ func probe(ctx context.Context, client *kube.Client) probeResult {
 	if err != nil {
 		return probeResult{connectionStatus: ConnectionStatusConnected, health: HealthRed, kubernetesVersion: version, nodeCount: len(nodes), seenNow: true}
 	}
-	pods, err := client.ListPods(ctx)
+	pods, err := client.ListPods(ctx, "")
 	if err != nil {
 		return probeResult{connectionStatus: ConnectionStatusConnected, health: HealthRed, kubernetesVersion: version, nodeCount: len(nodes), seenNow: true}
 	}

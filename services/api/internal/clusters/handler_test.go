@@ -11,18 +11,14 @@ import (
 	"testing"
 	"time"
 
-	appsv1 "k8s.io/api/apps/v1"
-	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/version"
-	discoveryfake "k8s.io/client-go/discovery/fake"
 	kubeclient "k8s.io/client-go/kubernetes"
 	fakeclient "k8s.io/client-go/kubernetes/fake"
 	k8stesting "k8s.io/client-go/testing"
 
 	"github.com/yonigofman/klyro/services/api/internal/clusters"
-	kube "github.com/yonigofman/klyro/services/api/internal/kubernetes"
+	"github.com/yonigofman/klyro/services/api/internal/testsupport"
 )
 
 // --- test server wiring -----------------------------------------------------
@@ -32,94 +28,25 @@ import (
 // this exercises the real Dial() parsing/context logic while substituting a
 // deterministic clientset for the network call client-go would otherwise make.
 func newTestServer(clientset kubeclient.Interface) *httptest.Server {
-	dialer := &kube.Dialer{
-		NewClientset: func(_ []byte, _ string) (kubeclient.Interface, error) {
-			return clientset, nil
-		},
-	}
-	service := clusters.NewService(dialer)
+	service := clusters.NewService(testsupport.FakeDialer(clientset))
 	mux := http.NewServeMux()
 	clusters.NewHandler(service).Register(mux)
 	return httptest.NewServer(mux)
 }
 
-// setFakedServerVersion pins the version client-go's fake Discovery() client
-// reports, so a successful probe produces a deterministic KubernetesVersion.
-func setFakedServerVersion(cs *fakeclient.Clientset, gitVersion string) {
-	cs.Discovery().(*discoveryfake.FakeDiscovery).FakedServerVersion = &version.Info{GitVersion: gitVersion}
-}
-
 // --- fixtures ----------------------------------------------------------------
+//
+// Node, Deployment, Pod, SingleContextKubeconfig and MultiContextKubeconfig
+// live in internal/testsupport, shared with internal/resources' tests.
 
-func readyCondition(ready bool) corev1.NodeCondition {
-	status := corev1.ConditionFalse
-	if ready {
-		status = corev1.ConditionTrue
-	}
-	return corev1.NodeCondition{Type: corev1.NodeReady, Status: status}
-}
-
-func node(name string, ready bool) *corev1.Node {
-	return &corev1.Node{
-		ObjectMeta: metav1.ObjectMeta{Name: name},
-		Status:     corev1.NodeStatus{Conditions: []corev1.NodeCondition{readyCondition(ready)}},
-	}
-}
-
-func deployment(name string, desired, ready int32) *appsv1.Deployment {
-	return &appsv1.Deployment{
-		ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: "default"},
-		Spec:       appsv1.DeploymentSpec{Replicas: &desired},
-		Status:     appsv1.DeploymentStatus{ReadyReplicas: ready},
-	}
-}
-
-func pod(name string) *corev1.Pod {
-	return &corev1.Pod{ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: "default"}}
-}
-
-func singleContextKubeconfig(contextName string) string {
-	return fmt.Sprintf(`apiVersion: v1
-kind: Config
-current-context: %[1]s
-clusters:
-- name: test-cluster
-  cluster:
-    server: https://example.invalid
-contexts:
-- name: %[1]s
-  context:
-    cluster: test-cluster
-    user: test-user
-users:
-- name: test-user
-  user:
-    token: fake-token-do-not-leak
-`, contextName)
-}
-
-func multiContextKubeconfigNoCurrent(contextA, contextB string) string {
-	return fmt.Sprintf(`apiVersion: v1
-kind: Config
-clusters:
-- name: test-cluster
-  cluster:
-    server: https://example.invalid
-contexts:
-- name: %[1]s
-  context:
-    cluster: test-cluster
-    user: test-user
-- name: %[2]s
-  context:
-    cluster: test-cluster
-    user: test-user
-users:
-- name: test-user
-  user:
-    token: fake-token-do-not-leak
-`, contextA, contextB)
-}
+var (
+	node                            = testsupport.Node
+	deployment                      = testsupport.Deployment
+	pod                             = testsupport.Pod
+	singleContextKubeconfig         = testsupport.SingleContextKubeconfig
+	multiContextKubeconfigNoCurrent = testsupport.MultiContextKubeconfig
+	setFakedServerVersion           = testsupport.SetFakedServerVersion
+)
 
 // --- HTTP helpers --------------------------------------------------------------
 
@@ -169,8 +96,8 @@ func TestRegister_HealthyClusterIsGreen(t *testing.T) {
 		node("node-a", true),
 		node("node-b", true),
 		deployment("web", 2, 2),
-		pod("web-abc12"),
-		pod("web-def34"),
+		pod("web-abc12", "default", "node-a", 1, 1, 0),
+		pod("web-def34", "default", "node-a", 1, 1, 0),
 	)
 	setFakedServerVersion(cs, "v1.30.1")
 	srv := newTestServer(cs)
@@ -475,9 +402,7 @@ func TestGet_UnknownIDIsNotFound(t *testing.T) {
 func TestRefreshAll_UpdatesHealthAfterRegistration(t *testing.T) {
 	cs := fakeclient.NewSimpleClientset(node("node-a", true), node("node-b", true))
 	setFakedServerVersion(cs, "v1.30.1")
-	dialer := &kube.Dialer{
-		NewClientset: func(_ []byte, _ string) (kubeclient.Interface, error) { return cs, nil },
-	}
+	dialer := testsupport.FakeDialer(cs)
 	service := clusters.NewService(dialer)
 
 	created, err := service.Register(context.Background(), clusters.RegisterRequest{Kubeconfig: singleContextKubeconfig("prod")})
@@ -509,9 +434,7 @@ func TestRefreshAll_UpdatesHealthAfterRegistration(t *testing.T) {
 func TestRefreshAll_PreservesLastSeenWhenClusterGoesUnreachable(t *testing.T) {
 	cs := fakeclient.NewSimpleClientset(node("node-a", true))
 	setFakedServerVersion(cs, "v1.30.1")
-	dialer := &kube.Dialer{
-		NewClientset: func(_ []byte, _ string) (kubeclient.Interface, error) { return cs, nil },
-	}
+	dialer := testsupport.FakeDialer(cs)
 	service := clusters.NewService(dialer)
 
 	created, err := service.Register(context.Background(), clusters.RegisterRequest{Kubeconfig: singleContextKubeconfig("prod")})

@@ -6,6 +6,7 @@ import { ClusterDetailPanel } from "#/features/clusters/components/ClusterDetail
 import { EmptyState } from "#/features/clusters/components/EmptyState";
 import { RegisterClusterDialog } from "#/features/clusters/components/RegisterClusterDialog";
 import { Input } from "#/components/ui/input";
+import { QueryState } from "#/components/shared/QueryState";
 
 export function ClusterDashboard() {
   const clustersQuery = useClusters();
@@ -42,22 +43,16 @@ export function ClusterDashboard() {
       </header>
 
       <main aria-label="Cluster roster" className="flex-1 px-6 py-4">
-        {clustersQuery.isPending && (
-          <p role="status" className="text-sm text-muted-foreground">
-            Loading clusters…
-          </p>
-        )}
-        {clustersQuery.isError && (
-          <p role="alert" className="text-sm text-destructive">
-            {clustersQuery.error.message}
-          </p>
-        )}
-        {filteredClusters &&
-          (filteredClusters.length === 0 ? (
+        <QueryState
+          query={clustersQuery}
+          loadingLabel="Loading clusters…"
+          isEmpty={() => (filteredClusters ?? []).length === 0}
+          empty={
             <EmptyState reason={clustersQuery.data && clustersQuery.data.length > 0 ? "no-matches" : "no-clusters"} />
-          ) : (
-            <ClusterRoster clusters={filteredClusters} />
-          ))}
+          }
+        >
+          {() => <ClusterRoster clusters={filteredClusters ?? []} />}
+        </QueryState>
       </main>
 
       {selectedCluster && <ClusterDetailPanel cluster={selectedCluster} />}

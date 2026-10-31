@@ -1,25 +1,28 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { Cluster } from "@klyro/api-client";
 
-const { listClusters, registerCluster, deleteCluster, getCluster } = vi.hoisted(() => ({
+const { listClusters, registerCluster, deleteCluster, getCluster, listNamespaces, listPods } = vi.hoisted(() => ({
   listClusters: vi.fn(),
   registerCluster: vi.fn(),
   deleteCluster: vi.fn(),
   getCluster: vi.fn(),
+  listNamespaces: vi.fn(),
+  listPods: vi.fn(),
 }));
 
 vi.mock("#/lib/api-client", () => ({
-  apiClient: { listClusters, registerCluster, deleteCluster, getCluster },
+  apiClient: { listClusters, registerCluster, deleteCluster, getCluster, listNamespaces, listPods },
 }));
 
 const { ClusterDashboard } = await import("./ClusterDashboard");
 const { useClusterSelectionStore } = await import("#/features/clusters/selection-store");
+const { useNamespaceFilterStore } = await import("#/features/clusters/namespace-filter-store");
 
 function renderDashboard() {
-  const queryClient = new QueryClient();
+  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(
     <QueryClientProvider client={queryClient}>
       <ClusterDashboard />
@@ -46,9 +49,13 @@ beforeEach(() => {
   listClusters.mockReset();
   registerCluster.mockReset();
   deleteCluster.mockReset();
-  // The selection store is a module-level singleton (by design — see
-  // selection-store.ts) and must be reset explicitly between tests.
+  listNamespaces.mockReset().mockResolvedValue([]);
+  listPods.mockReset().mockResolvedValue([]);
+  // Both stores are module-level singletons (by design — see
+  // selection-store.ts / namespace-filter-store.ts) and must be reset
+  // explicitly between tests.
   useClusterSelectionStore.setState({ selectedClusterId: null });
+  useNamespaceFilterStore.setState({ selectedNamespaceByCluster: {} });
 });
 
 describe("ClusterDashboard", () => {
@@ -84,7 +91,70 @@ describe("ClusterDashboard", () => {
     await userEvent.click(row);
 
     expect(await screen.findByRole("region", { name: /prod detail/i })).toBeInTheDocument();
-    expect(screen.getByText(/coming in a future release/i)).toBeInTheDocument();
+    expect(await screen.findByText(/no pods in this cluster/i)).toBeInTheDocument();
+  });
+
+  it("shows the namespace filter (with non-Active status) and the full pod summary", async () => {
+    listClusters.mockResolvedValue([cluster({ id: "c1", displayName: "prod" })]);
+    listNamespaces.mockResolvedValue([
+      { name: "default", status: "Active", createdAt: "2026-01-01T00:00:00Z" },
+      { name: "old-stuff", status: "Terminating", createdAt: "2026-01-01T00:00:00Z" },
+    ]);
+    listPods.mockResolvedValue([
+      {
+        name: "web-1",
+        namespace: "default",
+        phase: "Running",
+        ready: "2/2",
+        restarts: 3,
+        node: "node-a",
+        createdAt: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
+      },
+    ]);
+    renderDashboard();
+
+    await userEvent.click(await screen.findByText("prod"));
+
+    const podRow = (await screen.findByText("web-1")).closest("tr")!;
+    expect(within(podRow).getByText("Running")).toBeInTheDocument();
+    expect(within(podRow).getByText("2/2")).toBeInTheDocument();
+    expect(within(podRow).getByText("3")).toBeInTheDocument();
+    expect(within(podRow).getByText("node-a")).toBeInTheDocument();
+    expect(within(podRow).getByText("2h")).toBeInTheDocument();
+
+    const filter = screen.getByRole("combobox", { name: /filter by namespace/i });
+    expect(filter).toBeInTheDocument();
+    expect(screen.getByRole("option", { name: "old-stuff (Terminating)" })).toBeInTheDocument();
+  });
+
+  it("shows loading and error states for namespaces and pods independently", async () => {
+    listClusters.mockResolvedValue([cluster({ id: "c1", displayName: "prod" })]);
+    listNamespaces.mockImplementation(() => new Promise(() => {})); // never resolves
+    listPods.mockRejectedValue(new Error("pods fetch failed"));
+    renderDashboard();
+
+    await userEvent.click(await screen.findByText("prod"));
+
+    expect(await screen.findByText(/loading namespaces/i)).toBeInTheDocument();
+    expect(await screen.findByText(/pods fetch failed/i)).toBeInTheDocument();
+  });
+
+  it("refetches pods scoped to the chosen namespace", async () => {
+    listClusters.mockResolvedValue([cluster({ id: "c1", displayName: "prod" })]);
+    listNamespaces.mockResolvedValue([
+      { name: "default", status: "Active", createdAt: "2026-01-01T00:00:00Z" },
+      { name: "jobs", status: "Active", createdAt: "2026-01-01T00:00:00Z" },
+    ]);
+    listPods.mockResolvedValue([]);
+    renderDashboard();
+
+    await userEvent.click(await screen.findByText("prod"));
+    await screen.findByRole("combobox", { name: /filter by namespace/i });
+
+    await userEvent.selectOptions(screen.getByRole("combobox", { name: /filter by namespace/i }), "jobs");
+
+    expect(await screen.findByText(/no pods in jobs/i)).toBeInTheDocument();
+    expect(listPods).toHaveBeenCalledWith("c1", "jobs");
   });
 
   it("rejects an empty kubeconfig before submitting", async () => {

@@ -11,6 +11,7 @@ import (
 
 	"github.com/yonigofman/klyro/services/api/internal/clusters"
 	"github.com/yonigofman/klyro/services/api/internal/kubernetes"
+	"github.com/yonigofman/klyro/services/api/internal/resources"
 )
 
 const clusterRefreshInterval = 30 * time.Second
@@ -22,8 +23,11 @@ func main() {
 	clusterService := clusters.NewService(kubernetes.NewDialer())
 	go refreshClustersPeriodically(ctx, clusterService)
 
+	resourcesService := resources.NewService(clusterService)
+
 	mux := http.NewServeMux()
 	clusters.NewHandler(clusterService).Register(mux)
+	resources.NewHandler(resourcesService).Register(mux)
 
 	addr := ":" + port()
 	server := &http.Server{Addr: addr, Handler: withCORS(mux)}

@@ -7,7 +7,9 @@ import (
 )
 
 // record pairs a Cluster with the live Client used to re-probe it. The
-// Client never leaves this package — API responses only ever see Cluster.
+// Client is only ever exposed to other packages via Service.ClientFor, for
+// reusing a Cluster's connection (e.g. internal/resources) — it never goes
+// into an HTTP response; API responses only ever see Cluster.
 type record struct {
 	cluster Cluster
 	client  *kube.Client
@@ -44,6 +46,13 @@ func (s *store) get(id string) (Cluster, bool) {
 	defer s.mu.RUnlock()
 	r, ok := s.records[id]
 	return r.cluster, ok
+}
+
+func (s *store) getClient(id string) (*kube.Client, bool) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	r, ok := s.records[id]
+	return r.client, ok
 }
 
 func (s *store) list() []Cluster {

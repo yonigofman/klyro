@@ -62,9 +62,20 @@ func (c *Client) ListDaemonSets(ctx context.Context) ([]appsv1.DaemonSet, error)
 	return list.Items, nil
 }
 
-// ListPods returns every Pod across all namespaces.
-func (c *Client) ListPods(ctx context.Context) ([]corev1.Pod, error) {
-	list, err := c.clientset.CoreV1().Pods("").List(ctx, metav1.ListOptions{})
+// ListPods returns every Pod in namespace, or across all namespaces when
+// namespace is "".
+func (c *Client) ListPods(ctx context.Context, namespace string) ([]corev1.Pod, error) {
+	list, err := c.clientset.CoreV1().Pods(namespace).List(ctx, metav1.ListOptions{})
+	if err != nil {
+		return nil, err
+	}
+	return list.Items, nil
+}
+
+// ListNamespaces returns every Namespace (a Cluster-scoped Resource) in the
+// Cluster.
+func (c *Client) ListNamespaces(ctx context.Context) ([]corev1.Namespace, error) {
+	list, err := c.clientset.CoreV1().Namespaces().List(ctx, metav1.ListOptions{})
 	if err != nil {
 		return nil, err
 	}

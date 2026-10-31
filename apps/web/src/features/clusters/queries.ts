@@ -26,3 +26,18 @@ export function useDeleteCluster() {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: clustersQueryKey }),
   });
 }
+
+export function useNamespaces(clusterId: string) {
+  return useQuery({
+    queryKey: ["clusters", clusterId, "namespaces"],
+    queryFn: () => apiClient.listNamespaces(clusterId),
+  });
+}
+
+/** namespace undefined or "" fetches Pods across all namespaces. */
+export function usePods(clusterId: string, namespace: string | undefined) {
+  return useQuery({
+    queryKey: ["clusters", clusterId, "pods", namespace ?? "all"],
+    queryFn: () => apiClient.listPods(clusterId, namespace),
+  });
+}

@@ -28,3 +28,19 @@ export function formatLastSeen(lastSeen: string | null): string {
   if (Number.isNaN(date.getTime())) return "Never";
   return date.toLocaleString();
 }
+
+/** Formats an ISO timestamp as a short relative age, e.g. "3d", "2h", "<1m". */
+export function formatAge(createdAt: string): string {
+  const date = new Date(createdAt);
+  if (Number.isNaN(date.getTime())) return "—";
+
+  const seconds = Math.max(0, (Date.now() - date.getTime()) / 1000);
+  const minutes = seconds / 60;
+  const hours = minutes / 60;
+  const days = hours / 24;
+
+  if (days >= 1) return `${Math.floor(days)}d`;
+  if (hours >= 1) return `${Math.floor(hours)}h`;
+  if (minutes >= 1) return `${Math.floor(minutes)}m`;
+  return "<1m";
+}

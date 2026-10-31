@@ -1,3 +1,5 @@
+import type { NamespaceSummary, PodSummary } from "./resources";
+
 export type ConnectionStatus = "connected" | "unreachable";
 export type Health = "green" | "amber" | "red";
 
@@ -42,6 +44,9 @@ export interface ApiClient {
   getCluster(id: string): Promise<Cluster>;
   registerCluster(input: RegisterClusterInput): Promise<Cluster>;
   deleteCluster(id: string): Promise<void>;
+  listNamespaces(clusterId: string): Promise<NamespaceSummary[]>;
+  /** namespace omitted or "" lists Pods across all namespaces. */
+  listPods(clusterId: string, namespace?: string): Promise<PodSummary[]>;
 }
 
 export function createApiClient(options: ApiClientOptions): ApiClient {
@@ -81,5 +86,11 @@ export function createApiClient(options: ApiClientOptions): ApiClient {
       request<void>(`/api/v1/clusters/${encodeURIComponent(id)}`, {
         method: "DELETE",
       }),
+    listNamespaces: (clusterId) =>
+      request<NamespaceSummary[]>(`/api/v1/clusters/${encodeURIComponent(clusterId)}/namespaces`),
+    listPods: (clusterId, namespace) => {
+      const query = namespace ? `?namespace=${encodeURIComponent(namespace)}` : "";
+      return request<PodSummary[]>(`/api/v1/clusters/${encodeURIComponent(clusterId)}/pods${query}`);
+    },
   };
 }
