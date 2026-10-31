@@ -1,0 +1,9 @@
+{
+  "name": "@klyro/api",
+  "private": true,
+  "scripts": {
+    "build": "go build ./...",
+    "lint": "go vet ./...",
+    "test": "go test ./..."
+  }
+}

@@ -1,0 +1,22 @@
+{
+  "name": "klyro",
+  "version": "1.0.0",
+  "private": true,
+  "description": "A modern, open-source Kubernetes management platform.",
+  "license": "ISC",
+  "packageManager": "pnpm@10.10.0",
+  "scripts": {
+    "build": "turbo run build",
+    "dev": "turbo run dev",
+    "lint": "turbo run lint"
+  },
+  "devDependencies": {
+    "turbo": "^2.11.10"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "esbuild",
+      "lightningcss"
+    ]
+  }
+}
