@@ -1,0 +1,14 @@
+{
+  "detector": {
+    "ignoreRules": [],
+    "ignoreFiles": [],
+    "ignoreValues": [
+      {
+        "rule": "overused-font",
+        "value": "inter",
+        "createdAt": "2026-10-31T14:16:06.673Z",
+        "reason": "pinned by confirmed surface brief .impeccable/surfaces/cluster-overview-dashboard.md: 'Fonts: Inter (UI/labels)'"
+      }
+    ]
+  }
+}
