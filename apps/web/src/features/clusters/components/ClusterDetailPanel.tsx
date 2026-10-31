@@ -1,7 +1,7 @@
-import type { Cluster } from "@klyro/api-client";
-import { Button } from "#/components/ui/button";
-import { QueryState } from "#/components/shared/QueryState";
-import { ResourceListSkeleton } from "#/components/shared/ResourceListSkeleton";
+import type { Cluster } from '@klyro/api-client'
+import { Button } from '#/components/ui/button'
+import { QueryState } from '#/components/shared/QueryState'
+import { ResourceListSkeleton } from '#/components/shared/ResourceListSkeleton'
 import {
   useDeleteCluster,
   useEvents,
@@ -11,36 +11,56 @@ import {
   usePods,
   useServices,
   useWorkloads,
-} from "#/features/clusters/queries";
-import { useClusterSelectionStore } from "#/features/clusters/selection-store";
-import { selectedNamespaceFor, useNamespaceFilterStore } from "#/features/clusters/namespace-filter-store";
-import { activeTabFor, useResourceTabStore } from "#/features/clusters/resource-tab-store";
-import { NamespaceFilter } from "#/features/clusters/components/NamespaceFilter";
-import { ResourceTabs } from "#/features/clusters/components/ResourceTabs";
-import { PodList } from "#/features/clusters/components/PodList";
-import { WorkloadList } from "#/features/clusters/components/WorkloadList";
-import { ServiceList } from "#/features/clusters/components/ServiceList";
-import { IngressList } from "#/features/clusters/components/IngressList";
-import { NodeList } from "#/features/clusters/components/NodeList";
-import { EventList } from "#/features/clusters/components/EventList";
+} from '#/features/clusters/queries'
+import { useClusterSelectionStore } from '#/features/clusters/selection-store'
+import {
+  selectedNamespaceFor,
+  useNamespaceFilterStore,
+} from '#/features/clusters/namespace-filter-store'
+import {
+  activeTabFor,
+  useResourceTabStore,
+} from '#/features/clusters/resource-tab-store'
+import { NamespaceFilter } from '#/features/clusters/components/NamespaceFilter'
+import { ResourceTabs } from '#/features/clusters/components/ResourceTabs'
+import { PodList } from '#/features/clusters/components/PodList'
+import { WorkloadList } from '#/features/clusters/components/WorkloadList'
+import { ServiceList } from '#/features/clusters/components/ServiceList'
+import { IngressList } from '#/features/clusters/components/IngressList'
+import { NodeList } from '#/features/clusters/components/NodeList'
+import { EventList } from '#/features/clusters/components/EventList'
 
 export function ClusterDetailPanel({ cluster }: { cluster: Cluster }) {
-  const select = useClusterSelectionStore((state) => state.select);
-  const deleteCluster = useDeleteCluster();
+  const select = useClusterSelectionStore((state) => state.select)
+  const deleteCluster = useDeleteCluster()
 
-  const activeTab = useResourceTabStore(activeTabFor(cluster.id));
-  const selectedNamespace = useNamespaceFilterStore(selectedNamespaceFor(cluster.id));
-  const namespace = selectedNamespace ?? undefined;
+  const activeTab = useResourceTabStore(activeTabFor(cluster.id))
+  const selectedNamespace = useNamespaceFilterStore(
+    selectedNamespaceFor(cluster.id),
+  )
+  const namespace = selectedNamespace ?? undefined
 
-  const namespacesQuery = useNamespaces(cluster.id);
-  const podsQuery = usePods(cluster.id, namespace, activeTab === "pods");
-  const workloadsQuery = useWorkloads(cluster.id, namespace, activeTab === "workloads");
-  const servicesQuery = useServices(cluster.id, namespace, activeTab === "services");
-  const ingressesQuery = useIngresses(cluster.id, namespace, activeTab === "ingresses");
-  const nodesQuery = useNodes(cluster.id, activeTab === "nodes");
-  const eventsQuery = useEvents(cluster.id, namespace, activeTab === "events");
+  const namespacesQuery = useNamespaces(cluster.id)
+  const podsQuery = usePods(cluster.id, namespace, activeTab === 'pods')
+  const workloadsQuery = useWorkloads(
+    cluster.id,
+    namespace,
+    activeTab === 'workloads',
+  )
+  const servicesQuery = useServices(
+    cluster.id,
+    namespace,
+    activeTab === 'services',
+  )
+  const ingressesQuery = useIngresses(
+    cluster.id,
+    namespace,
+    activeTab === 'ingresses',
+  )
+  const nodesQuery = useNodes(cluster.id, activeTab === 'nodes')
+  const eventsQuery = useEvents(cluster.id, namespace, activeTab === 'events')
 
-  const showNamespaceFilter = activeTab !== "nodes";
+  const showNamespaceFilter = activeTab !== 'nodes'
 
   return (
     <section
@@ -48,15 +68,17 @@ export function ClusterDetailPanel({ cluster }: { cluster: Cluster }) {
       className="border border-border bg-card p-6"
     >
       <div className="flex items-center justify-between">
-        <h2 className="font-mono text-sm tracking-wide text-foreground">{cluster.displayName}</h2>
+        <h2 className="font-mono text-sm tracking-wide text-foreground">
+          {cluster.displayName}
+        </h2>
         <div className="flex items-center gap-2">
           <Button
             variant="outline"
             size="sm"
             disabled={deleteCluster.isPending}
             onClick={() => {
-              deleteCluster.mutate(cluster.id);
-              select(null);
+              deleteCluster.mutate(cluster.id)
+              select(null)
             }}
           >
             Remove cluster
@@ -73,14 +95,19 @@ export function ClusterDetailPanel({ cluster }: { cluster: Cluster }) {
 
       {showNamespaceFilter && (
         <div className="mt-3 flex items-center justify-end">
-          <QueryState query={namespacesQuery} loadingLabel="Loading namespaces…">
-            {(namespaces) => <NamespaceFilter clusterId={cluster.id} namespaces={namespaces} />}
+          <QueryState
+            query={namespacesQuery}
+            loadingLabel="Loading namespaces…"
+          >
+            {(namespaces) => (
+              <NamespaceFilter clusterId={cluster.id} namespaces={namespaces} />
+            )}
           </QueryState>
         </div>
       )}
 
-      <div className="mt-2">
-        {activeTab === "pods" && (
+      <div className="mt-2 h-[22rem] overflow-y-auto">
+        {activeTab === 'pods' && (
           <QueryState
             query={podsQuery}
             loadingLabel="Loading pods…"
@@ -88,7 +115,9 @@ export function ClusterDetailPanel({ cluster }: { cluster: Cluster }) {
             isEmpty={(pods) => pods.length === 0}
             empty={
               <p role="status" className="text-sm text-muted-foreground">
-                {selectedNamespace ? `No pods in ${selectedNamespace}.` : "No pods in this cluster."}
+                {selectedNamespace
+                  ? `No pods in ${selectedNamespace}.`
+                  : 'No pods in this cluster.'}
               </p>
             }
           >
@@ -96,7 +125,7 @@ export function ClusterDetailPanel({ cluster }: { cluster: Cluster }) {
           </QueryState>
         )}
 
-        {activeTab === "workloads" && (
+        {activeTab === 'workloads' && (
           <QueryState
             query={workloadsQuery}
             loadingLabel="Loading workloads…"
@@ -104,7 +133,9 @@ export function ClusterDetailPanel({ cluster }: { cluster: Cluster }) {
             isEmpty={(workloads) => workloads.length === 0}
             empty={
               <p role="status" className="text-sm text-muted-foreground">
-                {selectedNamespace ? `No workloads in ${selectedNamespace}.` : "No workloads in this cluster."}
+                {selectedNamespace
+                  ? `No workloads in ${selectedNamespace}.`
+                  : 'No workloads in this cluster.'}
               </p>
             }
           >
@@ -112,7 +143,7 @@ export function ClusterDetailPanel({ cluster }: { cluster: Cluster }) {
           </QueryState>
         )}
 
-        {activeTab === "services" && (
+        {activeTab === 'services' && (
           <QueryState
             query={servicesQuery}
             loadingLabel="Loading services…"
@@ -120,7 +151,9 @@ export function ClusterDetailPanel({ cluster }: { cluster: Cluster }) {
             isEmpty={(services) => services.length === 0}
             empty={
               <p role="status" className="text-sm text-muted-foreground">
-                {selectedNamespace ? `No services in ${selectedNamespace}.` : "No services in this cluster."}
+                {selectedNamespace
+                  ? `No services in ${selectedNamespace}.`
+                  : 'No services in this cluster.'}
               </p>
             }
           >
@@ -128,7 +161,7 @@ export function ClusterDetailPanel({ cluster }: { cluster: Cluster }) {
           </QueryState>
         )}
 
-        {activeTab === "ingresses" && (
+        {activeTab === 'ingresses' && (
           <QueryState
             query={ingressesQuery}
             loadingLabel="Loading ingresses…"
@@ -136,7 +169,9 @@ export function ClusterDetailPanel({ cluster }: { cluster: Cluster }) {
             isEmpty={(ingresses) => ingresses.length === 0}
             empty={
               <p role="status" className="text-sm text-muted-foreground">
-                {selectedNamespace ? `No ingresses in ${selectedNamespace}.` : "No ingresses in this cluster."}
+                {selectedNamespace
+                  ? `No ingresses in ${selectedNamespace}.`
+                  : 'No ingresses in this cluster.'}
               </p>
             }
           >
@@ -144,7 +179,7 @@ export function ClusterDetailPanel({ cluster }: { cluster: Cluster }) {
           </QueryState>
         )}
 
-        {activeTab === "nodes" && (
+        {activeTab === 'nodes' && (
           <QueryState
             query={nodesQuery}
             loadingLabel="Loading nodes…"
@@ -160,7 +195,7 @@ export function ClusterDetailPanel({ cluster }: { cluster: Cluster }) {
           </QueryState>
         )}
 
-        {activeTab === "events" && (
+        {activeTab === 'events' && (
           <QueryState
             query={eventsQuery}
             loadingLabel="Loading events…"
@@ -168,7 +203,9 @@ export function ClusterDetailPanel({ cluster }: { cluster: Cluster }) {
             isEmpty={(events) => events.length === 0}
             empty={
               <p role="status" className="text-sm text-muted-foreground">
-                {selectedNamespace ? `No events in ${selectedNamespace}.` : "No events in this cluster."}
+                {selectedNamespace
+                  ? `No events in ${selectedNamespace}.`
+                  : 'No events in this cluster.'}
               </p>
             }
           >
@@ -177,5 +214,5 @@ export function ClusterDetailPanel({ cluster }: { cluster: Cluster }) {
         )}
       </div>
     </section>
-  );
+  )
 }

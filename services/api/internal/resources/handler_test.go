@@ -326,6 +326,29 @@ func TestListServices_UnknownClusterIs404(t *testing.T) {
 	}
 }
 
+func TestListServices_EmptyClusterReturnsEmptyList(t *testing.T) {
+	srv, clusterID := newTestServer(t, fakeclient.NewSimpleClientset())
+	defer srv.Close()
+
+	resp, body := getJSON(t, srv.URL+"/api/v1/clusters/"+clusterID+"/services")
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("status = %d, want 200", resp.StatusCode)
+	}
+	if len(body) != 0 {
+		t.Errorf("got %v, want empty list", body)
+	}
+}
+
+func TestListServices_InvalidNamespaceIs400(t *testing.T) {
+	srv, clusterID := newTestServer(t, fakeclient.NewSimpleClientset())
+	defer srv.Close()
+
+	resp, _ := getJSON(t, srv.URL+"/api/v1/clusters/"+clusterID+"/services?namespace=Not_Valid!")
+	if resp.StatusCode != http.StatusBadRequest {
+		t.Fatalf("status = %d, want 400", resp.StatusCode)
+	}
+}
+
 // --- ingresses ---------------------------------------------------------
 
 func TestListIngresses_ReturnsHosts(t *testing.T) {
@@ -372,6 +395,29 @@ func TestListIngresses_UnknownClusterIs404(t *testing.T) {
 	resp, _ := getJSON(t, srv.URL+"/api/v1/clusters/does-not-exist/ingresses")
 	if resp.StatusCode != http.StatusNotFound {
 		t.Fatalf("status = %d, want 404", resp.StatusCode)
+	}
+}
+
+func TestListIngresses_EmptyClusterReturnsEmptyList(t *testing.T) {
+	srv, clusterID := newTestServer(t, fakeclient.NewSimpleClientset())
+	defer srv.Close()
+
+	resp, body := getJSON(t, srv.URL+"/api/v1/clusters/"+clusterID+"/ingresses")
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("status = %d, want 200", resp.StatusCode)
+	}
+	if len(body) != 0 {
+		t.Errorf("got %v, want empty list", body)
+	}
+}
+
+func TestListIngresses_InvalidNamespaceIs400(t *testing.T) {
+	srv, clusterID := newTestServer(t, fakeclient.NewSimpleClientset())
+	defer srv.Close()
+
+	resp, _ := getJSON(t, srv.URL+"/api/v1/clusters/"+clusterID+"/ingresses?namespace=Not_Valid!")
+	if resp.StatusCode != http.StatusBadRequest {
+		t.Fatalf("status = %d, want 400", resp.StatusCode)
 	}
 }
 
@@ -463,5 +509,28 @@ func TestListEvents_UnknownClusterIs404(t *testing.T) {
 	resp, _ := getJSON(t, srv.URL+"/api/v1/clusters/does-not-exist/events")
 	if resp.StatusCode != http.StatusNotFound {
 		t.Fatalf("status = %d, want 404", resp.StatusCode)
+	}
+}
+
+func TestListEvents_EmptyClusterReturnsEmptyList(t *testing.T) {
+	srv, clusterID := newTestServer(t, fakeclient.NewSimpleClientset())
+	defer srv.Close()
+
+	resp, body := getJSON(t, srv.URL+"/api/v1/clusters/"+clusterID+"/events")
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("status = %d, want 200", resp.StatusCode)
+	}
+	if len(body) != 0 {
+		t.Errorf("got %v, want empty list", body)
+	}
+}
+
+func TestListEvents_InvalidNamespaceIs400(t *testing.T) {
+	srv, clusterID := newTestServer(t, fakeclient.NewSimpleClientset())
+	defer srv.Close()
+
+	resp, _ := getJSON(t, srv.URL+"/api/v1/clusters/"+clusterID+"/events?namespace=Not_Valid!")
+	if resp.StatusCode != http.StatusBadRequest {
+		t.Fatalf("status = %d, want 400", resp.StatusCode)
 	}
 }

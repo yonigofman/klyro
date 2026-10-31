@@ -1,13 +1,19 @@
-import type { Cluster } from "@klyro/api-client";
-import { connectionStatusLabel, formatLastSeen, rosterDensity } from "#/features/clusters/health";
-import { useClusterSelectionStore } from "#/features/clusters/selection-store";
-import { StatusDot } from "#/features/clusters/components/StatusDot";
-import { cn } from "#/lib/utils";
+import type { Cluster } from '@klyro/api-client'
+import {
+  connectionStatusLabel,
+  formatLastSeen,
+  rosterDensity,
+} from '#/features/clusters/health'
+import { useClusterSelectionStore } from '#/features/clusters/selection-store'
+import { StatusDot } from '#/features/clusters/components/StatusDot'
+import { cn } from '#/lib/utils'
 
 export function ClusterRoster({ clusters }: { clusters: Cluster[] }) {
-  const density = rosterDensity(clusters.length);
-  const selectedClusterId = useClusterSelectionStore((state) => state.selectedClusterId);
-  const select = useClusterSelectionStore((state) => state.select);
+  const density = rosterDensity(clusters.length)
+  const selectedClusterId = useClusterSelectionStore(
+    (state) => state.selectedClusterId,
+  )
+  const select = useClusterSelectionStore((state) => state.select)
 
   return (
     <table className="w-full border-collapse text-left" data-density={density}>
@@ -25,7 +31,7 @@ export function ClusterRoster({ clusters }: { clusters: Cluster[] }) {
       </thead>
       <tbody>
         {clusters.map((cluster) => {
-          const isSelected = cluster.id === selectedClusterId;
+          const isSelected = cluster.id === selectedClusterId
           return (
             <tr
               key={cluster.id}
@@ -34,25 +40,29 @@ export function ClusterRoster({ clusters }: { clusters: Cluster[] }) {
               aria-selected={isSelected}
               onClick={() => select(isSelected ? null : cluster.id)}
               onKeyDown={(event) => {
-                if (event.key === "Enter" || event.key === " ") {
-                  select(isSelected ? null : cluster.id);
+                if (event.key === 'Enter' || event.key === ' ') {
+                  select(isSelected ? null : cluster.id)
                 }
               }}
               className={cn(
-                "cursor-pointer border-b border-border/60 outline-none hover:bg-accent/40 focus-visible:bg-accent/40",
-                density === "dense" ? "text-sm" : "text-base",
-                isSelected && "bg-accent/60",
+                'cursor-pointer border-b border-border/60 outline-none hover:bg-accent/40 focus-visible:bg-accent/40',
+                density === 'dense' ? 'text-sm' : 'text-base',
+                isSelected && 'bg-accent/60',
               )}
             >
-              <td className={cn("py-2", density === "dense" ? "py-1.5" : "py-3")}>
+              <td
+                className={cn('py-2', density === 'dense' ? 'py-1.5' : 'py-3')}
+              >
                 <StatusDot health={cluster.health} />
               </td>
-              <td className="py-2 font-mono font-medium text-foreground">{cluster.displayName}</td>
+              <td className="py-2 font-mono font-medium text-foreground">
+                {cluster.displayName}
+              </td>
               <td className="py-2 font-mono text-sm tabular-nums text-muted-foreground">
                 {cluster.context}
               </td>
               <td className="py-2 font-mono text-sm tabular-nums text-muted-foreground">
-                {cluster.kubernetesVersion || "—"}
+                {cluster.kubernetesVersion || '—'}
               </td>
               <td className="py-2 font-mono text-sm tabular-nums text-muted-foreground">
                 {cluster.nodeCount}
@@ -67,9 +77,9 @@ export function ClusterRoster({ clusters }: { clusters: Cluster[] }) {
                 {connectionStatusLabel(cluster.connectionStatus)}
               </td>
             </tr>
-          );
+          )
         })}
       </tbody>
     </table>
-  );
+  )
 }

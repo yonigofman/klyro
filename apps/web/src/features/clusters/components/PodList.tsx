@@ -1,35 +1,52 @@
-import type { PodSummary } from "@klyro/api-client";
-import { formatAge } from "#/features/clusters/health";
+import type { PodSummary } from '@klyro/api-client'
+import { ResourceTable } from '#/components/shared/ResourceTable'
+import type { ResourceTableColumn } from '#/components/shared/ResourceTable'
+import { formatAge } from '#/features/clusters/health'
+
+const columns: ResourceTableColumn<PodSummary>[] = [
+  {
+    header: 'Name',
+    cellClassName: 'font-mono font-medium text-foreground',
+    render: (pod) => pod.name,
+  },
+  {
+    header: 'Namespace',
+    cellClassName: 'font-mono text-sm text-muted-foreground',
+    render: (pod) => pod.namespace,
+  },
+  {
+    header: 'Phase',
+    cellClassName: 'font-mono text-sm uppercase text-muted-foreground',
+    render: (pod) => pod.phase,
+  },
+  {
+    header: 'Ready',
+    cellClassName: 'font-mono text-sm tabular-nums text-muted-foreground',
+    render: (pod) => pod.ready,
+  },
+  {
+    header: 'Restarts',
+    cellClassName: 'font-mono text-sm tabular-nums text-muted-foreground',
+    render: (pod) => pod.restarts,
+  },
+  {
+    header: 'Node',
+    cellClassName: 'font-mono text-sm text-muted-foreground',
+    render: (pod) => pod.node || '—',
+  },
+  {
+    header: 'Age',
+    cellClassName: 'font-mono text-sm tabular-nums text-muted-foreground',
+    render: (pod) => formatAge(pod.createdAt),
+  },
+]
 
 export function PodList({ pods }: { pods: PodSummary[] }) {
   return (
-    <table className="w-full border-collapse text-left">
-      <thead>
-        <tr className="border-b border-border text-xs uppercase tracking-wide text-muted-foreground">
-          <th className="py-2 font-normal">Name</th>
-          <th className="py-2 font-normal">Namespace</th>
-          <th className="py-2 font-normal">Phase</th>
-          <th className="py-2 font-normal">Ready</th>
-          <th className="py-2 font-normal">Restarts</th>
-          <th className="py-2 font-normal">Node</th>
-          <th className="py-2 font-normal">Age</th>
-        </tr>
-      </thead>
-      <tbody>
-        {pods.map((pod) => (
-          <tr key={`${pod.namespace}/${pod.name}`} className="border-b border-border/60">
-            <td className="py-2 font-mono font-medium text-foreground">{pod.name}</td>
-            <td className="py-2 font-mono text-sm text-muted-foreground">{pod.namespace}</td>
-            <td className="py-2 font-mono text-sm uppercase text-muted-foreground">{pod.phase}</td>
-            <td className="py-2 font-mono text-sm tabular-nums text-muted-foreground">{pod.ready}</td>
-            <td className="py-2 font-mono text-sm tabular-nums text-muted-foreground">{pod.restarts}</td>
-            <td className="py-2 font-mono text-sm text-muted-foreground">{pod.node || "—"}</td>
-            <td className="py-2 font-mono text-sm tabular-nums text-muted-foreground">
-              {formatAge(pod.createdAt)}
-            </td>
-          </tr>
-        ))}
-      </tbody>
-    </table>
-  );
+    <ResourceTable
+      rows={pods}
+      rowKey={(pod) => `${pod.namespace}/${pod.name}`}
+      columns={columns}
+    />
+  )
 }

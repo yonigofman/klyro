@@ -1,31 +1,37 @@
-import type { NodeSummary } from "@klyro/api-client";
-import { formatAge } from "#/features/clusters/health";
+import type { NodeSummary } from '@klyro/api-client'
+import { ResourceTable } from '#/components/shared/ResourceTable'
+import type { ResourceTableColumn } from '#/components/shared/ResourceTable'
+import { formatAge } from '#/features/clusters/health'
+
+const columns: ResourceTableColumn<NodeSummary>[] = [
+  {
+    header: 'Name',
+    cellClassName: 'font-mono font-medium text-foreground',
+    render: (node) => node.name,
+  },
+  {
+    header: 'Ready',
+    cellClassName: 'font-mono text-sm uppercase text-muted-foreground',
+    render: (node) => (node.ready ? 'Ready' : 'Not Ready'),
+  },
+  {
+    header: 'Version',
+    cellClassName: 'font-mono text-sm tabular-nums text-muted-foreground',
+    render: (node) => node.kubernetesVersion || '—',
+  },
+  {
+    header: 'Age',
+    cellClassName: 'font-mono text-sm tabular-nums text-muted-foreground',
+    render: (node) => formatAge(node.createdAt),
+  },
+]
 
 export function NodeList({ nodes }: { nodes: NodeSummary[] }) {
   return (
-    <table className="w-full border-collapse text-left">
-      <thead>
-        <tr className="border-b border-border text-xs uppercase tracking-wide text-muted-foreground">
-          <th className="py-2 font-normal">Name</th>
-          <th className="py-2 font-normal">Ready</th>
-          <th className="py-2 font-normal">Version</th>
-          <th className="py-2 font-normal">Age</th>
-        </tr>
-      </thead>
-      <tbody>
-        {nodes.map((node) => (
-          <tr key={node.name} className="border-b border-border/60">
-            <td className="py-2 font-mono font-medium text-foreground">{node.name}</td>
-            <td className="py-2 font-mono text-sm uppercase text-muted-foreground">
-              {node.ready ? "Ready" : "Not Ready"}
-            </td>
-            <td className="py-2 font-mono text-sm tabular-nums text-muted-foreground">
-              {node.kubernetesVersion || "—"}
-            </td>
-            <td className="py-2 font-mono text-sm tabular-nums text-muted-foreground">{formatAge(node.createdAt)}</td>
-          </tr>
-        ))}
-      </tbody>
-    </table>
-  );
+    <ResourceTable
+      rows={nodes}
+      rowKey={(node) => node.name}
+      columns={columns}
+    />
+  )
 }

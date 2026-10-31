@@ -1,5 +1,5 @@
-import type { ReactNode } from "react";
-import type { UseQueryResult } from "@tanstack/react-query";
+import type { ReactNode } from 'react'
+import type { UseQueryResult } from '@tanstack/react-query'
 
 /**
  * Renders a TanStack Query result's loading/error/empty/loaded states
@@ -14,13 +14,13 @@ export function QueryState<T>({
   empty,
   children,
 }: {
-  query: UseQueryResult<T>;
-  loadingLabel: string;
+  query: UseQueryResult<T>
+  loadingLabel: string
   /** Rendered while loading, in place of the default text message. */
-  skeleton?: ReactNode;
-  isEmpty?: (data: T) => boolean;
-  empty?: ReactNode;
-  children: (data: T) => ReactNode;
+  skeleton?: ReactNode
+  isEmpty?: (data: T) => boolean
+  empty?: ReactNode
+  children: (data: T) => ReactNode
 }) {
   if (query.isPending) {
     return (
@@ -29,7 +29,7 @@ export function QueryState<T>({
           {loadingLabel}
         </p>
       )
-    );
+    )
   }
 
   if (query.isError) {
@@ -37,16 +37,16 @@ export function QueryState<T>({
       <p role="alert" className="text-sm text-destructive">
         {query.error.message}
       </p>
-    );
+    )
   }
 
   if (!query.data) {
-    return null;
+    return null
   }
 
   if (isEmpty?.(query.data)) {
-    return <>{empty}</>;
+    return <>{empty}</>
   }
 
-  return <>{children(query.data)}</>;
+  return <>{children(query.data)}</>
 }

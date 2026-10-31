@@ -1,35 +1,47 @@
-import type { ServiceSummary } from "@klyro/api-client";
-import { formatAge } from "#/features/clusters/health";
+import type { ServiceSummary } from '@klyro/api-client'
+import { ResourceTable } from '#/components/shared/ResourceTable'
+import type { ResourceTableColumn } from '#/components/shared/ResourceTable'
+import { formatAge } from '#/features/clusters/health'
+
+const columns: ResourceTableColumn<ServiceSummary>[] = [
+  {
+    header: 'Name',
+    cellClassName: 'font-mono font-medium text-foreground',
+    render: (svc) => svc.name,
+  },
+  {
+    header: 'Namespace',
+    cellClassName: 'font-mono text-sm text-muted-foreground',
+    render: (svc) => svc.namespace,
+  },
+  {
+    header: 'Type',
+    cellClassName: 'font-mono text-sm uppercase text-muted-foreground',
+    render: (svc) => svc.type,
+  },
+  {
+    header: 'Cluster IP',
+    cellClassName: 'font-mono text-sm tabular-nums text-muted-foreground',
+    render: (svc) => svc.clusterIP || '—',
+  },
+  {
+    header: 'Ports',
+    cellClassName: 'font-mono text-sm tabular-nums text-muted-foreground',
+    render: (svc) => (svc.ports.length > 0 ? svc.ports.join(', ') : '—'),
+  },
+  {
+    header: 'Age',
+    cellClassName: 'font-mono text-sm tabular-nums text-muted-foreground',
+    render: (svc) => formatAge(svc.createdAt),
+  },
+]
 
 export function ServiceList({ services }: { services: ServiceSummary[] }) {
   return (
-    <table className="w-full border-collapse text-left">
-      <thead>
-        <tr className="border-b border-border text-xs uppercase tracking-wide text-muted-foreground">
-          <th className="py-2 font-normal">Name</th>
-          <th className="py-2 font-normal">Namespace</th>
-          <th className="py-2 font-normal">Type</th>
-          <th className="py-2 font-normal">Cluster IP</th>
-          <th className="py-2 font-normal">Ports</th>
-          <th className="py-2 font-normal">Age</th>
-        </tr>
-      </thead>
-      <tbody>
-        {services.map((service) => (
-          <tr key={`${service.namespace}/${service.name}`} className="border-b border-border/60">
-            <td className="py-2 font-mono font-medium text-foreground">{service.name}</td>
-            <td className="py-2 font-mono text-sm text-muted-foreground">{service.namespace}</td>
-            <td className="py-2 font-mono text-sm uppercase text-muted-foreground">{service.type}</td>
-            <td className="py-2 font-mono text-sm tabular-nums text-muted-foreground">{service.clusterIP || "—"}</td>
-            <td className="py-2 font-mono text-sm tabular-nums text-muted-foreground">
-              {service.ports.length > 0 ? service.ports.join(", ") : "—"}
-            </td>
-            <td className="py-2 font-mono text-sm tabular-nums text-muted-foreground">
-              {formatAge(service.createdAt)}
-            </td>
-          </tr>
-        ))}
-      </tbody>
-    </table>
-  );
+    <ResourceTable
+      rows={services}
+      rowKey={(svc) => `${svc.namespace}/${svc.name}`}
+      columns={columns}
+    />
+  )
 }

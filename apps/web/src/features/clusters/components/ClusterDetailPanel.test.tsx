@@ -1,8 +1,8 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
-import { render, screen, within } from "@testing-library/react";
-import userEvent from "@testing-library/user-event";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import type { Cluster } from "@klyro/api-client";
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { render, screen, within } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import type { Cluster } from '@klyro/api-client'
 
 const {
   listNamespaces,
@@ -22,9 +22,9 @@ const {
   listNodes: vi.fn(),
   listEvents: vi.fn(),
   deleteCluster: vi.fn(),
-}));
+}))
 
-vi.mock("#/lib/api-client", () => ({
+vi.mock('#/lib/api-client', () => ({
   apiClient: {
     listNamespaces,
     listPods,
@@ -35,211 +35,258 @@ vi.mock("#/lib/api-client", () => ({
     listEvents,
     deleteCluster,
   },
-}));
+}))
 
-const { ClusterDetailPanel } = await import("./ClusterDetailPanel");
-const { useClusterSelectionStore } = await import("#/features/clusters/selection-store");
-const { useNamespaceFilterStore } = await import("#/features/clusters/namespace-filter-store");
-const { useResourceTabStore } = await import("#/features/clusters/resource-tab-store");
+const { ClusterDetailPanel } = await import('./ClusterDetailPanel')
+const { useClusterSelectionStore } =
+  await import('#/features/clusters/selection-store')
+const { useNamespaceFilterStore } =
+  await import('#/features/clusters/namespace-filter-store')
+const { useResourceTabStore } =
+  await import('#/features/clusters/resource-tab-store')
 
 function renderPanel(clusterToRender: Cluster) {
-  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  const queryClient = new QueryClient({
+    defaultOptions: { queries: { retry: false } },
+  })
   return render(
     <QueryClientProvider client={queryClient}>
       <ClusterDetailPanel cluster={clusterToRender} />
     </QueryClientProvider>,
-  );
+  )
 }
 
 function cluster(overrides: Partial<Cluster> = {}): Cluster {
   return {
-    id: "c1",
-    displayName: "prod",
-    context: "prod-ctx",
-    kubernetesVersion: "v1.30.1",
-    connectionStatus: "connected",
-    health: "green",
+    id: 'c1',
+    displayName: 'prod',
+    context: 'prod-ctx',
+    kubernetesVersion: 'v1.30.1',
+    connectionStatus: 'connected',
+    health: 'green',
     nodeCount: 3,
     podCount: 12,
-    lastSeen: "2026-01-01T00:00:00Z",
+    lastSeen: '2026-01-01T00:00:00Z',
     ...overrides,
-  };
+  }
 }
 
 beforeEach(() => {
-  listNamespaces.mockReset().mockResolvedValue([]);
-  listPods.mockReset().mockResolvedValue([]);
-  listWorkloads.mockReset().mockResolvedValue([]);
-  listServices.mockReset().mockResolvedValue([]);
-  listIngresses.mockReset().mockResolvedValue([]);
-  listNodes.mockReset().mockResolvedValue([]);
-  listEvents.mockReset().mockResolvedValue([]);
-  deleteCluster.mockReset();
-  useClusterSelectionStore.setState({ selectedClusterId: null });
-  useNamespaceFilterStore.setState({ selectedNamespaceByCluster: {} });
-  useResourceTabStore.setState({ activeTabByCluster: {} });
-});
+  listNamespaces.mockReset().mockResolvedValue([])
+  listPods.mockReset().mockResolvedValue([])
+  listWorkloads.mockReset().mockResolvedValue([])
+  listServices.mockReset().mockResolvedValue([])
+  listIngresses.mockReset().mockResolvedValue([])
+  listNodes.mockReset().mockResolvedValue([])
+  listEvents.mockReset().mockResolvedValue([])
+  deleteCluster.mockReset()
+  useClusterSelectionStore.setState({ selectedClusterId: null })
+  useNamespaceFilterStore.setState({ selectedNamespaceByCluster: {} })
+  useResourceTabStore.setState({ activeTabByCluster: {} })
+})
 
-describe("ClusterDetailPanel", () => {
-  it("shows the Pods tab by default with the namespace filter and full pod summary", async () => {
+describe('ClusterDetailPanel', () => {
+  it('shows the Pods tab by default with the namespace filter and full pod summary', async () => {
     listNamespaces.mockResolvedValue([
-      { name: "default", status: "Active", createdAt: "2026-01-01T00:00:00Z" },
-      { name: "old-stuff", status: "Terminating", createdAt: "2026-01-01T00:00:00Z" },
-    ]);
+      { name: 'default', status: 'Active', createdAt: '2026-01-01T00:00:00Z' },
+      {
+        name: 'old-stuff',
+        status: 'Terminating',
+        createdAt: '2026-01-01T00:00:00Z',
+      },
+    ])
     listPods.mockResolvedValue([
       {
-        name: "web-1",
-        namespace: "default",
-        phase: "Running",
-        ready: "2/2",
+        name: 'web-1',
+        namespace: 'default',
+        phase: 'Running',
+        ready: '2/2',
         restarts: 3,
-        node: "node-a",
+        node: 'node-a',
         createdAt: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
       },
-    ]);
-    renderPanel(cluster());
+    ])
+    renderPanel(cluster())
 
-    const podRow = (await screen.findByText("web-1")).closest("tr")!;
-    expect(within(podRow).getByText("Running")).toBeInTheDocument();
-    expect(within(podRow).getByText("2/2")).toBeInTheDocument();
-    expect(within(podRow).getByText("3")).toBeInTheDocument();
-    expect(within(podRow).getByText("node-a")).toBeInTheDocument();
-    expect(within(podRow).getByText("2h")).toBeInTheDocument();
+    const podRow = (await screen.findByText('web-1')).closest('tr')!
+    expect(within(podRow).getByText('Running')).toBeInTheDocument()
+    expect(within(podRow).getByText('2/2')).toBeInTheDocument()
+    expect(within(podRow).getByText('3')).toBeInTheDocument()
+    expect(within(podRow).getByText('node-a')).toBeInTheDocument()
+    expect(within(podRow).getByText('2h')).toBeInTheDocument()
 
-    expect(screen.getByRole("option", { name: "old-stuff (Terminating)" })).toBeInTheDocument();
-  });
+    expect(
+      screen.getByRole('option', { name: 'old-stuff (Terminating)' }),
+    ).toBeInTheDocument()
+  })
 
-  it("shows loading and error states for namespaces and pods independently", async () => {
-    listNamespaces.mockImplementation(() => new Promise(() => {})); // never resolves
-    listPods.mockRejectedValue(new Error("pods fetch failed"));
-    renderPanel(cluster());
+  it('shows loading and error states for namespaces and pods independently', async () => {
+    listNamespaces.mockImplementation(() => new Promise(() => {})) // never resolves
+    listPods.mockRejectedValue(new Error('pods fetch failed'))
+    renderPanel(cluster())
 
-    expect(await screen.findByText(/loading namespaces/i)).toBeInTheDocument();
-    expect(await screen.findByText(/pods fetch failed/i)).toBeInTheDocument();
-  });
+    expect(await screen.findByText(/loading namespaces/i)).toBeInTheDocument()
+    expect(await screen.findByText(/pods fetch failed/i)).toBeInTheDocument()
+  })
 
-  it("refetches pods scoped to the chosen namespace", async () => {
+  it('refetches pods scoped to the chosen namespace', async () => {
     listNamespaces.mockResolvedValue([
-      { name: "default", status: "Active", createdAt: "2026-01-01T00:00:00Z" },
-      { name: "jobs", status: "Active", createdAt: "2026-01-01T00:00:00Z" },
-    ]);
-    renderPanel(cluster());
+      { name: 'default', status: 'Active', createdAt: '2026-01-01T00:00:00Z' },
+      { name: 'jobs', status: 'Active', createdAt: '2026-01-01T00:00:00Z' },
+    ])
+    renderPanel(cluster())
 
-    await screen.findByRole("combobox", { name: /filter by namespace/i });
-    await userEvent.selectOptions(screen.getByRole("combobox", { name: /filter by namespace/i }), "jobs");
+    await screen.findByRole('combobox', { name: /filter by namespace/i })
+    await userEvent.selectOptions(
+      screen.getByRole('combobox', { name: /filter by namespace/i }),
+      'jobs',
+    )
 
-    expect(await screen.findByText(/no pods in jobs/i)).toBeInTheDocument();
-    expect(listPods).toHaveBeenCalledWith("c1", "jobs");
-  });
+    expect(await screen.findByText(/no pods in jobs/i)).toBeInTheDocument()
+    expect(listPods).toHaveBeenCalledWith('c1', 'jobs')
+  })
 
-  it("removing a cluster calls delete and clears the selection", async () => {
-    useClusterSelectionStore.setState({ selectedClusterId: "c1" });
-    renderPanel(cluster());
+  it('removing a cluster calls delete and clears the selection', async () => {
+    useClusterSelectionStore.setState({ selectedClusterId: 'c1' })
+    renderPanel(cluster())
 
-    await userEvent.click(await screen.findByRole("button", { name: /remove cluster/i }));
+    await userEvent.click(
+      await screen.findByRole('button', { name: /remove cluster/i }),
+    )
 
-    expect(deleteCluster).toHaveBeenCalledWith("c1");
-    expect(useClusterSelectionStore.getState().selectedClusterId).toBeNull();
-  });
+    expect(deleteCluster).toHaveBeenCalledWith('c1')
+    expect(useClusterSelectionStore.getState().selectedClusterId).toBeNull()
+  })
 
   it("does not fetch an inactive tab's resource until it's selected", async () => {
-    renderPanel(cluster());
-    await screen.findByRole("tab", { name: "Workloads" });
+    renderPanel(cluster())
+    await screen.findByRole('tab', { name: 'Workloads' })
 
-    expect(listWorkloads).not.toHaveBeenCalled();
+    expect(listWorkloads).not.toHaveBeenCalled()
 
-    await userEvent.click(screen.getByRole("tab", { name: "Workloads" }));
+    await userEvent.click(screen.getByRole('tab', { name: 'Workloads' }))
 
-    expect(await screen.findByText(/no workloads in this cluster/i)).toBeInTheDocument();
-    expect(listWorkloads).toHaveBeenCalledWith("c1", undefined);
-  });
+    expect(
+      await screen.findByText(/no workloads in this cluster/i),
+    ).toBeInTheDocument()
+    expect(listWorkloads).toHaveBeenCalledWith('c1', undefined)
+  })
 
-  it("shows the Workloads tab with kind, replica counts, and age", async () => {
+  it('shows the Workloads tab with kind, replica counts, and age', async () => {
     listWorkloads.mockResolvedValue([
-      { kind: "Deployment", name: "web", namespace: "default", desired: 3, ready: 2, createdAt: "2026-01-01T00:00:00Z" },
-    ]);
-    renderPanel(cluster());
+      {
+        kind: 'Deployment',
+        name: 'web',
+        namespace: 'default',
+        desired: 3,
+        ready: 2,
+        createdAt: '2026-01-01T00:00:00Z',
+      },
+    ])
+    renderPanel(cluster())
 
-    await userEvent.click(await screen.findByRole("tab", { name: "Workloads" }));
+    await userEvent.click(await screen.findByRole('tab', { name: 'Workloads' }))
 
-    const row = (await screen.findByText("web")).closest("tr")!;
-    expect(within(row).getByText("Deployment")).toBeInTheDocument();
-    expect(within(row).getByText("2/3")).toBeInTheDocument();
-  });
+    const row = (await screen.findByText('web')).closest('tr')!
+    expect(within(row).getByText('Deployment')).toBeInTheDocument()
+    expect(within(row).getByText('2/3')).toBeInTheDocument()
+  })
 
-  it("shows the Services tab with type, cluster IP, and ports", async () => {
+  it('shows the Services tab with type, cluster IP, and ports', async () => {
     listServices.mockResolvedValue([
-      { name: "web", namespace: "default", type: "ClusterIP", clusterIP: "10.0.0.1", ports: ["80/TCP"], createdAt: "2026-01-01T00:00:00Z" },
-    ]);
-    renderPanel(cluster());
+      {
+        name: 'web',
+        namespace: 'default',
+        type: 'ClusterIP',
+        clusterIP: '10.0.0.1',
+        ports: ['80/TCP'],
+        createdAt: '2026-01-01T00:00:00Z',
+      },
+    ])
+    renderPanel(cluster())
 
-    await userEvent.click(await screen.findByRole("tab", { name: "Services" }));
+    await userEvent.click(await screen.findByRole('tab', { name: 'Services' }))
 
-    const row = (await screen.findByText("web")).closest("tr")!;
-    expect(within(row).getByText("ClusterIP")).toBeInTheDocument();
-    expect(within(row).getByText("10.0.0.1")).toBeInTheDocument();
-    expect(within(row).getByText("80/TCP")).toBeInTheDocument();
-  });
+    const row = (await screen.findByText('web')).closest('tr')!
+    expect(within(row).getByText('ClusterIP')).toBeInTheDocument()
+    expect(within(row).getByText('10.0.0.1')).toBeInTheDocument()
+    expect(within(row).getByText('80/TCP')).toBeInTheDocument()
+  })
 
-  it("shows the Ingresses tab with routed hosts", async () => {
+  it('shows the Ingresses tab with routed hosts', async () => {
     listIngresses.mockResolvedValue([
-      { name: "web", namespace: "default", hosts: ["web.example.com"], createdAt: "2026-01-01T00:00:00Z" },
-    ]);
-    renderPanel(cluster());
+      {
+        name: 'web',
+        namespace: 'default',
+        hosts: ['web.example.com'],
+        createdAt: '2026-01-01T00:00:00Z',
+      },
+    ])
+    renderPanel(cluster())
 
-    await userEvent.click(await screen.findByRole("tab", { name: "Ingresses" }));
+    await userEvent.click(await screen.findByRole('tab', { name: 'Ingresses' }))
 
-    expect(await screen.findByText("web.example.com")).toBeInTheDocument();
-  });
+    expect(await screen.findByText('web.example.com')).toBeInTheDocument()
+  })
 
-  it("shows the Nodes tab and hides the namespace filter", async () => {
+  it('shows the Nodes tab and hides the namespace filter', async () => {
     listNodes.mockResolvedValue([
-      { name: "node-a", ready: true, kubernetesVersion: "v1.30.1", createdAt: "2026-01-01T00:00:00Z" },
-    ]);
-    renderPanel(cluster());
+      {
+        name: 'node-a',
+        ready: true,
+        kubernetesVersion: 'v1.30.1',
+        createdAt: '2026-01-01T00:00:00Z',
+      },
+    ])
+    renderPanel(cluster())
 
-    await userEvent.click(await screen.findByRole("tab", { name: "Nodes" }));
+    await userEvent.click(await screen.findByRole('tab', { name: 'Nodes' }))
 
-    const row = (await screen.findByText("node-a")).closest("tr")!;
-    expect(within(row).getByText("Ready")).toBeInTheDocument();
-    expect(screen.queryByRole("combobox", { name: /filter by namespace/i })).not.toBeInTheDocument();
-  });
+    const row = (await screen.findByText('node-a')).closest('tr')!
+    expect(within(row).getByText('Ready')).toBeInTheDocument()
+    expect(
+      screen.queryByRole('combobox', { name: /filter by namespace/i }),
+    ).not.toBeInTheDocument()
+  })
 
-  it("shows the Events tab with type, reason, and involved object", async () => {
+  it('shows the Events tab with type, reason, and involved object', async () => {
     listEvents.mockResolvedValue([
       {
-        type: "Warning",
-        reason: "BackOff",
-        message: "container crashed",
-        involvedObjectKind: "Pod",
-        involvedObjectName: "web-1",
-        namespace: "default",
+        type: 'Warning',
+        reason: 'BackOff',
+        message: 'container crashed',
+        involvedObjectKind: 'Pod',
+        involvedObjectName: 'web-1',
+        namespace: 'default',
         count: 3,
-        lastSeen: "2026-01-01T00:00:00Z",
+        lastSeen: '2026-01-01T00:00:00Z',
       },
-    ]);
-    renderPanel(cluster());
+    ])
+    renderPanel(cluster())
 
-    await userEvent.click(await screen.findByRole("tab", { name: "Events" }));
+    await userEvent.click(await screen.findByRole('tab', { name: 'Events' }))
 
-    const row = (await screen.findByText("BackOff")).closest("tr")!;
-    expect(within(row).getByText("Warning")).toBeInTheDocument();
-    expect(within(row).getByText("Pod/web-1")).toBeInTheDocument();
-    expect(within(row).getByText("3")).toBeInTheDocument();
-  });
+    const row = (await screen.findByText('BackOff')).closest('tr')!
+    expect(within(row).getByText('Warning')).toBeInTheDocument()
+    expect(within(row).getByText('Pod/web-1')).toBeInTheDocument()
+    expect(within(row).getByText('3')).toBeInTheDocument()
+  })
 
-  it("applies the same namespace filter to Workloads as it does to Pods", async () => {
+  it('applies the same namespace filter to Workloads as it does to Pods', async () => {
     listNamespaces.mockResolvedValue([
-      { name: "default", status: "Active", createdAt: "2026-01-01T00:00:00Z" },
-      { name: "jobs", status: "Active", createdAt: "2026-01-01T00:00:00Z" },
-    ]);
-    renderPanel(cluster());
+      { name: 'default', status: 'Active', createdAt: '2026-01-01T00:00:00Z' },
+      { name: 'jobs', status: 'Active', createdAt: '2026-01-01T00:00:00Z' },
+    ])
+    renderPanel(cluster())
 
-    await screen.findByRole("combobox", { name: /filter by namespace/i });
-    await userEvent.selectOptions(screen.getByRole("combobox", { name: /filter by namespace/i }), "jobs");
-    await userEvent.click(screen.getByRole("tab", { name: "Workloads" }));
+    await screen.findByRole('combobox', { name: /filter by namespace/i })
+    await userEvent.selectOptions(
+      screen.getByRole('combobox', { name: /filter by namespace/i }),
+      'jobs',
+    )
+    await userEvent.click(screen.getByRole('tab', { name: 'Workloads' }))
 
-    expect(await screen.findByText(/no workloads in jobs/i)).toBeInTheDocument();
-    expect(listWorkloads).toHaveBeenCalledWith("c1", "jobs");
-  });
-});
+    expect(await screen.findByText(/no workloads in jobs/i)).toBeInTheDocument()
+    expect(listWorkloads).toHaveBeenCalledWith('c1', 'jobs')
+  })
+})

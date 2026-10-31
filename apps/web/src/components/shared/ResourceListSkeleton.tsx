@@ -1,4 +1,4 @@
-import { Skeleton } from "#/components/ui/skeleton";
+import { Skeleton } from '#/components/ui/skeleton'
 
 export function ResourceListSkeleton({ label }: { label: string }) {
   return (
@@ -7,5 +7,5 @@ export function ResourceListSkeleton({ label }: { label: string }) {
         <Skeleton key={i} className="h-6 w-full" />
       ))}
     </div>
-  );
+  )
 }
