@@ -1,17 +1,20 @@
 // Package main is the entrypoint for the Klyro API service.
 //
-// Phase 5 adds the first real capability: an mTLS gRPC server that cluster
-// agents dial into to register and report health. REST/HTTP endpoints and
-// the modules AGENTS.md describes (Identity, Authorization, Resources, ...)
-// are later phases.
+// Phase 5 added the first real capability: an mTLS gRPC server that
+// cluster agents dial into to register and report health. Phase 6 adds the
+// first REST endpoints, serving resource data the gRPC side relays from
+// the agent. The modules AGENTS.md describes beyond Clusters/Resources
+// (Identity, Authorization, ...) are later phases.
 package main
 
 import (
 	"context"
 	"crypto/tls"
 	"crypto/x509"
+	"errors"
 	"log/slog"
 	"net"
+	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
@@ -22,13 +25,15 @@ import (
 	agentv1 "github.com/yonigofman/klyro/packages/protocol/agent/v1"
 	"github.com/yonigofman/klyro/services/api/internal/agentserver"
 	"github.com/yonigofman/klyro/services/api/internal/clusters"
+	"github.com/yonigofman/klyro/services/api/internal/httpapi"
 )
 
 func main() {
 	log := slog.New(slog.NewTextHandler(os.Stdout, nil))
 
 	certDir := envOr("KLYRO_CERT_DIR", "../../.dev/certs")
-	addr := envOr("KLYRO_AGENT_GRPC_ADDR", ":9443")
+	grpcAddr := envOr("KLYRO_AGENT_GRPC_ADDR", ":9443")
+	httpAddr := envOr("KLYRO_HTTP_ADDR", ":8080")
 
 	tlsConfig, err := serverTLSConfig(certDir)
 	if err != nil {
@@ -36,17 +41,18 @@ func main() {
 		os.Exit(1)
 	}
 
-	lis, err := net.Listen("tcp", addr)
+	lis, err := net.Listen("tcp", grpcAddr)
 	if err != nil {
-		log.Error("failed to listen", "addr", addr, "error", err)
+		log.Error("failed to listen", "addr", grpcAddr, "error", err)
 		os.Exit(1)
 	}
 
 	store := clusters.NewStore()
+	agents := agentserver.New(store, log)
 	grpcServer := grpc.NewServer(grpc.Creds(credentials.NewTLS(tlsConfig)))
-	agentv1.RegisterAgentServiceServer(grpcServer, agentserver.New(store, log))
+	agentv1.RegisterAgentServiceServer(grpcServer, agents)
 
-	log.Info("agent gRPC server listening", "addr", addr)
+	httpServer := &http.Server{Addr: httpAddr, Handler: httpapi.NewMux(agents, log)}
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
@@ -55,8 +61,18 @@ func main() {
 		<-ctx.Done()
 		log.Info("shutting down")
 		grpcServer.GracefulStop()
+		_ = httpServer.Shutdown(context.Background())
 	}()
 
+	go func() {
+		log.Info("http api listening", "addr", httpAddr)
+		if err := httpServer.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+			log.Error("http server stopped", "error", err)
+			os.Exit(1)
+		}
+	}()
+
+	log.Info("agent gRPC server listening", "addr", grpcAddr)
 	if err := grpcServer.Serve(lis); err != nil {
 		log.Error("grpc server stopped", "error", err)
 		os.Exit(1)

@@ -4,6 +4,7 @@
   "scripts": {
     "build": "go build -o bin/ ./...",
     "lint": "golangci-lint run --allow-parallel-runners ./...",
-    "test": "go test ./..."
+    "test": "go test ./...",
+    "dev": "test -f ../../.dev/certs/ca-cert.pem || ../../scripts/gen-dev-certs.sh; go run ./cmd/api"
   }
 }

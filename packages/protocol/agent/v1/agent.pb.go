@@ -76,6 +76,7 @@ type AgentMessage struct {
 	//
 	//	*AgentMessage_Register
 	//	*AgentMessage_Heartbeat
+	//	*AgentMessage_ListResourcesResponse
 	Payload       isAgentMessage_Payload `protobuf_oneof:"payload"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -136,6 +137,15 @@ func (x *AgentMessage) GetHeartbeat() *Heartbeat {
 	return nil
 }
 
+func (x *AgentMessage) GetListResourcesResponse() *ListResourcesResponse {
+	if x != nil {
+		if x, ok := x.Payload.(*AgentMessage_ListResourcesResponse); ok {
+			return x.ListResourcesResponse
+		}
+	}
+	return nil
+}
+
 type isAgentMessage_Payload interface {
 	isAgentMessage_Payload()
 }
@@ -148,9 +158,15 @@ type AgentMessage_Heartbeat struct {
 	Heartbeat *Heartbeat `protobuf:"bytes,2,opt,name=heartbeat,proto3,oneof"`
 }
 
+type AgentMessage_ListResourcesResponse struct {
+	ListResourcesResponse *ListResourcesResponse `protobuf:"bytes,3,opt,name=list_resources_response,json=listResourcesResponse,proto3,oneof"`
+}
+
 func (*AgentMessage_Register) isAgentMessage_Payload() {}
 
 func (*AgentMessage_Heartbeat) isAgentMessage_Payload() {}
+
+func (*AgentMessage_ListResourcesResponse) isAgentMessage_Payload() {}
 
 type ServerMessage struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
@@ -158,6 +174,7 @@ type ServerMessage struct {
 	//
 	//	*ServerMessage_RegisterAck
 	//	*ServerMessage_HeartbeatAck
+	//	*ServerMessage_ListResourcesRequest
 	Payload       isServerMessage_Payload `protobuf_oneof:"payload"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -218,6 +235,15 @@ func (x *ServerMessage) GetHeartbeatAck() *HeartbeatAck {
 	return nil
 }
 
+func (x *ServerMessage) GetListResourcesRequest() *ListResourcesRequest {
+	if x != nil {
+		if x, ok := x.Payload.(*ServerMessage_ListResourcesRequest); ok {
+			return x.ListResourcesRequest
+		}
+	}
+	return nil
+}
+
 type isServerMessage_Payload interface {
 	isServerMessage_Payload()
 }
@@ -230,9 +256,18 @@ type ServerMessage_HeartbeatAck struct {
 	HeartbeatAck *HeartbeatAck `protobuf:"bytes,2,opt,name=heartbeat_ack,json=heartbeatAck,proto3,oneof"`
 }
 
+type ServerMessage_ListResourcesRequest struct {
+	// Pushed DOWN the stream to the agent: the backend can never dial the
+	// agent directly, so a request/response pair rides the same connection
+	// the agent opened, correlated by request_id.
+	ListResourcesRequest *ListResourcesRequest `protobuf:"bytes,3,opt,name=list_resources_request,json=listResourcesRequest,proto3,oneof"`
+}
+
 func (*ServerMessage_RegisterAck) isServerMessage_Payload() {}
 
 func (*ServerMessage_HeartbeatAck) isServerMessage_Payload() {}
+
+func (*ServerMessage_ListResourcesRequest) isServerMessage_Payload() {}
 
 type RegisterRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
@@ -496,18 +531,227 @@ func (x *HeartbeatAck) GetServerTimeUnix() int64 {
 	return 0
 }
 
+// ListResourcesRequest asks the agent to list one kind of resource. Phase 6
+// covers the typed, built-in kinds below — the dynamic client for CRDs is
+// follow-up work.
+type ListResourcesRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	RequestId     string                 `protobuf:"bytes,1,opt,name=request_id,json=requestId,proto3" json:"request_id,omitempty"`
+	Kind          string                 `protobuf:"bytes,2,opt,name=kind,proto3" json:"kind,omitempty"`           // "Pod" | "Deployment" | "Service" | "Node"
+	Namespace     string                 `protobuf:"bytes,3,opt,name=namespace,proto3" json:"namespace,omitempty"` // empty = all namespaces; ignored for cluster-scoped kinds (Node)
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListResourcesRequest) Reset() {
+	*x = ListResourcesRequest{}
+	mi := &file_agent_v1_agent_proto_msgTypes[7]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListResourcesRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListResourcesRequest) ProtoMessage() {}
+
+func (x *ListResourcesRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_agent_v1_agent_proto_msgTypes[7]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListResourcesRequest.ProtoReflect.Descriptor instead.
+func (*ListResourcesRequest) Descriptor() ([]byte, []int) {
+	return file_agent_v1_agent_proto_rawDescGZIP(), []int{7}
+}
+
+func (x *ListResourcesRequest) GetRequestId() string {
+	if x != nil {
+		return x.RequestId
+	}
+	return ""
+}
+
+func (x *ListResourcesRequest) GetKind() string {
+	if x != nil {
+		return x.Kind
+	}
+	return ""
+}
+
+func (x *ListResourcesRequest) GetNamespace() string {
+	if x != nil {
+		return x.Namespace
+	}
+	return ""
+}
+
+type ListResourcesResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	RequestId     string                 `protobuf:"bytes,1,opt,name=request_id,json=requestId,proto3" json:"request_id,omitempty"`
+	Kind          string                 `protobuf:"bytes,2,opt,name=kind,proto3" json:"kind,omitempty"`
+	Resources     []*Resource            `protobuf:"bytes,3,rep,name=resources,proto3" json:"resources,omitempty"`
+	Error         string                 `protobuf:"bytes,4,opt,name=error,proto3" json:"error,omitempty"` // set, with resources empty, when the agent-side list call failed
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListResourcesResponse) Reset() {
+	*x = ListResourcesResponse{}
+	mi := &file_agent_v1_agent_proto_msgTypes[8]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListResourcesResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListResourcesResponse) ProtoMessage() {}
+
+func (x *ListResourcesResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_agent_v1_agent_proto_msgTypes[8]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListResourcesResponse.ProtoReflect.Descriptor instead.
+func (*ListResourcesResponse) Descriptor() ([]byte, []int) {
+	return file_agent_v1_agent_proto_rawDescGZIP(), []int{8}
+}
+
+func (x *ListResourcesResponse) GetRequestId() string {
+	if x != nil {
+		return x.RequestId
+	}
+	return ""
+}
+
+func (x *ListResourcesResponse) GetKind() string {
+	if x != nil {
+		return x.Kind
+	}
+	return ""
+}
+
+func (x *ListResourcesResponse) GetResources() []*Resource {
+	if x != nil {
+		return x.Resources
+	}
+	return nil
+}
+
+func (x *ListResourcesResponse) GetError() string {
+	if x != nil {
+		return x.Error
+	}
+	return ""
+}
+
+type Resource struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Name          string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	Namespace     string                 `protobuf:"bytes,2,opt,name=namespace,proto3" json:"namespace,omitempty"`
+	Status        string                 `protobuf:"bytes,3,opt,name=status,proto3" json:"status,omitempty"`                                                                         // short human status, e.g. "Running", "2/2 Ready"
+	CreatedAt     string                 `protobuf:"bytes,4,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`                                                  // RFC3339
+	Extra         map[string]string      `protobuf:"bytes,5,rep,name=extra,proto3" json:"extra,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"` // kind-specific fields: pod restarts, node roles/version, ...
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *Resource) Reset() {
+	*x = Resource{}
+	mi := &file_agent_v1_agent_proto_msgTypes[9]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *Resource) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*Resource) ProtoMessage() {}
+
+func (x *Resource) ProtoReflect() protoreflect.Message {
+	mi := &file_agent_v1_agent_proto_msgTypes[9]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use Resource.ProtoReflect.Descriptor instead.
+func (*Resource) Descriptor() ([]byte, []int) {
+	return file_agent_v1_agent_proto_rawDescGZIP(), []int{9}
+}
+
+func (x *Resource) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *Resource) GetNamespace() string {
+	if x != nil {
+		return x.Namespace
+	}
+	return ""
+}
+
+func (x *Resource) GetStatus() string {
+	if x != nil {
+		return x.Status
+	}
+	return ""
+}
+
+func (x *Resource) GetCreatedAt() string {
+	if x != nil {
+		return x.CreatedAt
+	}
+	return ""
+}
+
+func (x *Resource) GetExtra() map[string]string {
+	if x != nil {
+		return x.Extra
+	}
+	return nil
+}
+
 var File_agent_v1_agent_proto protoreflect.FileDescriptor
 
 const file_agent_v1_agent_proto_rawDesc = "" +
 	"\n" +
-	"\x14agent/v1/agent.proto\x12\x0eklyro.agent.v1\"\x93\x01\n" +
+	"\x14agent/v1/agent.proto\x12\x0eklyro.agent.v1\"\xf4\x01\n" +
 	"\fAgentMessage\x12=\n" +
 	"\bregister\x18\x01 \x01(\v2\x1f.klyro.agent.v1.RegisterRequestH\x00R\bregister\x129\n" +
-	"\theartbeat\x18\x02 \x01(\v2\x19.klyro.agent.v1.HeartbeatH\x00R\theartbeatB\t\n" +
-	"\apayload\"\xa1\x01\n" +
+	"\theartbeat\x18\x02 \x01(\v2\x19.klyro.agent.v1.HeartbeatH\x00R\theartbeat\x12_\n" +
+	"\x17list_resources_response\x18\x03 \x01(\v2%.klyro.agent.v1.ListResourcesResponseH\x00R\x15listResourcesResponseB\t\n" +
+	"\apayload\"\xff\x01\n" +
 	"\rServerMessage\x12@\n" +
 	"\fregister_ack\x18\x01 \x01(\v2\x1b.klyro.agent.v1.RegisterAckH\x00R\vregisterAck\x12C\n" +
-	"\rheartbeat_ack\x18\x02 \x01(\v2\x1c.klyro.agent.v1.HeartbeatAckH\x00R\fheartbeatAckB\t\n" +
+	"\rheartbeat_ack\x18\x02 \x01(\v2\x1c.klyro.agent.v1.HeartbeatAckH\x00R\fheartbeatAck\x12\\\n" +
+	"\x16list_resources_request\x18\x03 \x01(\v2$.klyro.agent.v1.ListResourcesRequestH\x00R\x14listResourcesRequestB\t\n" +
 	"\apayload\"Y\n" +
 	"\x0fRegisterRequest\x12!\n" +
 	"\fcluster_name\x18\x01 \x01(\tR\vclusterName\x12#\n" +
@@ -526,7 +770,29 @@ const file_agent_v1_agent_proto_rawDesc = "" +
 	"node_count\x18\x02 \x01(\x05R\tnodeCount\x12/\n" +
 	"\x13discovery_available\x18\x03 \x01(\bR\x12discoveryAvailable\"8\n" +
 	"\fHeartbeatAck\x12(\n" +
-	"\x10server_time_unix\x18\x01 \x01(\x03R\x0eserverTimeUnix*d\n" +
+	"\x10server_time_unix\x18\x01 \x01(\x03R\x0eserverTimeUnix\"g\n" +
+	"\x14ListResourcesRequest\x12\x1d\n" +
+	"\n" +
+	"request_id\x18\x01 \x01(\tR\trequestId\x12\x12\n" +
+	"\x04kind\x18\x02 \x01(\tR\x04kind\x12\x1c\n" +
+	"\tnamespace\x18\x03 \x01(\tR\tnamespace\"\x98\x01\n" +
+	"\x15ListResourcesResponse\x12\x1d\n" +
+	"\n" +
+	"request_id\x18\x01 \x01(\tR\trequestId\x12\x12\n" +
+	"\x04kind\x18\x02 \x01(\tR\x04kind\x126\n" +
+	"\tresources\x18\x03 \x03(\v2\x18.klyro.agent.v1.ResourceR\tresources\x12\x14\n" +
+	"\x05error\x18\x04 \x01(\tR\x05error\"\xe8\x01\n" +
+	"\bResource\x12\x12\n" +
+	"\x04name\x18\x01 \x01(\tR\x04name\x12\x1c\n" +
+	"\tnamespace\x18\x02 \x01(\tR\tnamespace\x12\x16\n" +
+	"\x06status\x18\x03 \x01(\tR\x06status\x12\x1d\n" +
+	"\n" +
+	"created_at\x18\x04 \x01(\tR\tcreatedAt\x129\n" +
+	"\x05extra\x18\x05 \x03(\v2#.klyro.agent.v1.Resource.ExtraEntryR\x05extra\x1a8\n" +
+	"\n" +
+	"ExtraEntry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01*d\n" +
 	"\fHealthStatus\x12\x1d\n" +
 	"\x19HEALTH_STATUS_UNSPECIFIED\x10\x00\x12\x19\n" +
 	"\x15HEALTH_STATUS_HEALTHY\x10\x01\x12\x1a\n" +
@@ -547,31 +813,39 @@ func file_agent_v1_agent_proto_rawDescGZIP() []byte {
 }
 
 var file_agent_v1_agent_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_agent_v1_agent_proto_msgTypes = make([]protoimpl.MessageInfo, 7)
+var file_agent_v1_agent_proto_msgTypes = make([]protoimpl.MessageInfo, 11)
 var file_agent_v1_agent_proto_goTypes = []any{
-	(HealthStatus)(0),       // 0: klyro.agent.v1.HealthStatus
-	(*AgentMessage)(nil),    // 1: klyro.agent.v1.AgentMessage
-	(*ServerMessage)(nil),   // 2: klyro.agent.v1.ServerMessage
-	(*RegisterRequest)(nil), // 3: klyro.agent.v1.RegisterRequest
-	(*RegisterAck)(nil),     // 4: klyro.agent.v1.RegisterAck
-	(*Heartbeat)(nil),       // 5: klyro.agent.v1.Heartbeat
-	(*Capabilities)(nil),    // 6: klyro.agent.v1.Capabilities
-	(*HeartbeatAck)(nil),    // 7: klyro.agent.v1.HeartbeatAck
+	(HealthStatus)(0),             // 0: klyro.agent.v1.HealthStatus
+	(*AgentMessage)(nil),          // 1: klyro.agent.v1.AgentMessage
+	(*ServerMessage)(nil),         // 2: klyro.agent.v1.ServerMessage
+	(*RegisterRequest)(nil),       // 3: klyro.agent.v1.RegisterRequest
+	(*RegisterAck)(nil),           // 4: klyro.agent.v1.RegisterAck
+	(*Heartbeat)(nil),             // 5: klyro.agent.v1.Heartbeat
+	(*Capabilities)(nil),          // 6: klyro.agent.v1.Capabilities
+	(*HeartbeatAck)(nil),          // 7: klyro.agent.v1.HeartbeatAck
+	(*ListResourcesRequest)(nil),  // 8: klyro.agent.v1.ListResourcesRequest
+	(*ListResourcesResponse)(nil), // 9: klyro.agent.v1.ListResourcesResponse
+	(*Resource)(nil),              // 10: klyro.agent.v1.Resource
+	nil,                           // 11: klyro.agent.v1.Resource.ExtraEntry
 }
 var file_agent_v1_agent_proto_depIdxs = []int32{
-	3, // 0: klyro.agent.v1.AgentMessage.register:type_name -> klyro.agent.v1.RegisterRequest
-	5, // 1: klyro.agent.v1.AgentMessage.heartbeat:type_name -> klyro.agent.v1.Heartbeat
-	4, // 2: klyro.agent.v1.ServerMessage.register_ack:type_name -> klyro.agent.v1.RegisterAck
-	7, // 3: klyro.agent.v1.ServerMessage.heartbeat_ack:type_name -> klyro.agent.v1.HeartbeatAck
-	0, // 4: klyro.agent.v1.Heartbeat.status:type_name -> klyro.agent.v1.HealthStatus
-	6, // 5: klyro.agent.v1.Heartbeat.capabilities:type_name -> klyro.agent.v1.Capabilities
-	1, // 6: klyro.agent.v1.AgentService.Connect:input_type -> klyro.agent.v1.AgentMessage
-	2, // 7: klyro.agent.v1.AgentService.Connect:output_type -> klyro.agent.v1.ServerMessage
-	7, // [7:8] is the sub-list for method output_type
-	6, // [6:7] is the sub-list for method input_type
-	6, // [6:6] is the sub-list for extension type_name
-	6, // [6:6] is the sub-list for extension extendee
-	0, // [0:6] is the sub-list for field type_name
+	3,  // 0: klyro.agent.v1.AgentMessage.register:type_name -> klyro.agent.v1.RegisterRequest
+	5,  // 1: klyro.agent.v1.AgentMessage.heartbeat:type_name -> klyro.agent.v1.Heartbeat
+	9,  // 2: klyro.agent.v1.AgentMessage.list_resources_response:type_name -> klyro.agent.v1.ListResourcesResponse
+	4,  // 3: klyro.agent.v1.ServerMessage.register_ack:type_name -> klyro.agent.v1.RegisterAck
+	7,  // 4: klyro.agent.v1.ServerMessage.heartbeat_ack:type_name -> klyro.agent.v1.HeartbeatAck
+	8,  // 5: klyro.agent.v1.ServerMessage.list_resources_request:type_name -> klyro.agent.v1.ListResourcesRequest
+	0,  // 6: klyro.agent.v1.Heartbeat.status:type_name -> klyro.agent.v1.HealthStatus
+	6,  // 7: klyro.agent.v1.Heartbeat.capabilities:type_name -> klyro.agent.v1.Capabilities
+	10, // 8: klyro.agent.v1.ListResourcesResponse.resources:type_name -> klyro.agent.v1.Resource
+	11, // 9: klyro.agent.v1.Resource.extra:type_name -> klyro.agent.v1.Resource.ExtraEntry
+	1,  // 10: klyro.agent.v1.AgentService.Connect:input_type -> klyro.agent.v1.AgentMessage
+	2,  // 11: klyro.agent.v1.AgentService.Connect:output_type -> klyro.agent.v1.ServerMessage
+	11, // [11:12] is the sub-list for method output_type
+	10, // [10:11] is the sub-list for method input_type
+	10, // [10:10] is the sub-list for extension type_name
+	10, // [10:10] is the sub-list for extension extendee
+	0,  // [0:10] is the sub-list for field type_name
 }
 
 func init() { file_agent_v1_agent_proto_init() }
@@ -582,10 +856,12 @@ func file_agent_v1_agent_proto_init() {
 	file_agent_v1_agent_proto_msgTypes[0].OneofWrappers = []any{
 		(*AgentMessage_Register)(nil),
 		(*AgentMessage_Heartbeat)(nil),
+		(*AgentMessage_ListResourcesResponse)(nil),
 	}
 	file_agent_v1_agent_proto_msgTypes[1].OneofWrappers = []any{
 		(*ServerMessage_RegisterAck)(nil),
 		(*ServerMessage_HeartbeatAck)(nil),
+		(*ServerMessage_ListResourcesRequest)(nil),
 	}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
@@ -593,7 +869,7 @@ func file_agent_v1_agent_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_agent_v1_agent_proto_rawDesc), len(file_agent_v1_agent_proto_rawDesc)),
 			NumEnums:      1,
-			NumMessages:   7,
+			NumMessages:   11,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

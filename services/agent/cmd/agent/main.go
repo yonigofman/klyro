@@ -21,6 +21,7 @@ import (
 
 	agentv1 "github.com/yonigofman/klyro/packages/protocol/agent/v1"
 	"github.com/yonigofman/klyro/services/agent/internal/connector"
+	"github.com/yonigofman/klyro/services/agent/internal/discovery"
 )
 
 func main() {
@@ -47,22 +48,59 @@ func main() {
 
 	client := agentv1.NewAgentServiceClient(conn)
 
+	clientset, err := discovery.NewClientset(kubeconfigPath)
+	if err != nil {
+		log.Warn("no cluster reachable yet; will report degraded health", "error", err)
+		clientset = nil
+	}
+
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
 	log.Info("connecting to api", "addr", serverAddr, "cluster_name", clusterName)
 
-	if err := connector.Run(ctx, client, connector.Config{
+	runWithReconnect(ctx, client, connector.Config{
 		ClusterName:    clusterName,
 		AgentVersion:   "v0.0.0-dev",
-		KubeconfigPath: kubeconfigPath,
+		Clientset:      clientset,
 		HeartbeatEvery: 5 * time.Second,
-	}, log); err != nil && ctx.Err() == nil {
-		log.Error("connector stopped", "error", err)
-		os.Exit(1)
-	}
+	}, log)
 
 	log.Info("shut down cleanly")
+}
+
+// runWithReconnect keeps calling connector.Run until ctx is canceled. The
+// api may not be listening yet (dev startup order) or may restart; a
+// disconnected agent should keep trying, not exit. Backoff caps at 10s.
+func runWithReconnect(ctx context.Context, client agentv1.AgentServiceClient, cfg connector.Config, log *slog.Logger) {
+	backoff := time.Second
+	const maxBackoff = 10 * time.Second
+
+	for ctx.Err() == nil {
+		startedAt := time.Now()
+		err := connector.Run(ctx, client, cfg, log)
+		if ctx.Err() != nil {
+			return
+		}
+		if err != nil {
+			log.Warn("connector stopped, reconnecting", "error", err, "retry_in", backoff)
+		}
+
+		if time.Since(startedAt) > 5*time.Second {
+			backoff = time.Second // it was connected a while; don't punish a later, unrelated drop
+		}
+
+		select {
+		case <-ctx.Done():
+			return
+		case <-time.After(backoff):
+		}
+
+		backoff *= 2
+		if backoff > maxBackoff {
+			backoff = maxBackoff
+		}
+	}
 }
 
 func clientTLSConfig(certDir, serverName string) (*tls.Config, error) {

@@ -1,22 +1,28 @@
 // Package connector is the agent's gRPC client: it dials out to
 // services/api over mTLS, registers, and streams periodic heartbeats. The
-// agent never accepts inbound connections (see AGENTS.md §5).
+// agent never accepts inbound connections (see AGENTS.md §5), so requests
+// from the backend (ListResources) arrive as messages pushed down this
+// same stream, correlated by request_id.
 package connector
 
 import (
 	"context"
 	"fmt"
 	"log/slog"
+	"sync"
 	"time"
+
+	"k8s.io/client-go/kubernetes"
 
 	agentv1 "github.com/yonigofman/klyro/packages/protocol/agent/v1"
 	"github.com/yonigofman/klyro/services/agent/internal/discovery"
+	"github.com/yonigofman/klyro/services/agent/internal/resources"
 )
 
 type Config struct {
 	ClusterName    string
 	AgentVersion   string
-	KubeconfigPath string
+	Clientset      *kubernetes.Clientset // nil when no cluster is reachable yet
 	HeartbeatEvery time.Duration
 }
 
@@ -28,8 +34,14 @@ func Run(ctx context.Context, client agentv1.AgentServiceClient, cfg Config, log
 	if err != nil {
 		return fmt.Errorf("connect: %w", err)
 	}
+	var sendMu sync.Mutex
+	send := func(msg *agentv1.AgentMessage) error {
+		sendMu.Lock()
+		defer sendMu.Unlock()
+		return stream.Send(msg)
+	}
 
-	if err := stream.Send(&agentv1.AgentMessage{
+	if err := send(&agentv1.AgentMessage{
 		Payload: &agentv1.AgentMessage_Register{
 			Register: &agentv1.RegisterRequest{
 				ClusterName:  cfg.ClusterName,
@@ -57,21 +69,25 @@ func Run(ctx context.Context, client agentv1.AgentServiceClient, cfg Config, log
 	ticker := time.NewTicker(interval)
 	defer ticker.Stop()
 
-	// Receive acks on a separate goroutine so a slow/absent server
-	// response never blocks the heartbeat send loop.
+	recvErrCh := make(chan error, 1)
 	go func() {
 		for {
 			msg, err := stream.Recv()
 			if err != nil {
+				recvErrCh <- err
 				return
 			}
-			if hbAck := msg.GetHeartbeatAck(); hbAck != nil {
-				log.Debug("heartbeat acked", "server_time", hbAck.GetServerTimeUnix())
+
+			switch {
+			case msg.GetHeartbeatAck() != nil:
+				log.Debug("heartbeat acked", "server_time", msg.GetHeartbeatAck().GetServerTimeUnix())
+			case msg.GetListResourcesRequest() != nil:
+				handleListResources(ctx, send, cfg, msg.GetListResourcesRequest(), log)
 			}
 		}
 	}()
 
-	if err := sendHeartbeat(ctx, stream, ack.GetClusterId(), cfg, log); err != nil {
+	if err := sendHeartbeat(ctx, send, ack.GetClusterId(), cfg, log); err != nil {
 		return err
 	}
 
@@ -79,16 +95,47 @@ func Run(ctx context.Context, client agentv1.AgentServiceClient, cfg Config, log
 		select {
 		case <-ctx.Done():
 			return stream.CloseSend()
+		case err := <-recvErrCh:
+			return err
 		case <-ticker.C:
-			if err := sendHeartbeat(ctx, stream, ack.GetClusterId(), cfg, log); err != nil {
+			if err := sendHeartbeat(ctx, send, ack.GetClusterId(), cfg, log); err != nil {
 				return err
 			}
 		}
 	}
 }
 
-func sendHeartbeat(ctx context.Context, stream agentv1.AgentService_ConnectClient, clusterID string, cfg Config, log *slog.Logger) error {
-	info := discovery.Gather(ctx, cfg.KubeconfigPath)
+func handleListResources(ctx context.Context, send func(*agentv1.AgentMessage) error, cfg Config, req *agentv1.ListResourcesRequest, log *slog.Logger) {
+	log.Info("listing resources", "kind", req.GetKind(), "namespace", req.GetNamespace())
+
+	resp := &agentv1.ListResourcesResponse{
+		RequestId: req.GetRequestId(),
+		Kind:      req.GetKind(),
+	}
+
+	if cfg.Clientset == nil {
+		resp.Error = "no cluster is reachable from this agent"
+	} else {
+		items := resources.List(ctx, cfg.Clientset, req.GetKind(), req.GetNamespace())
+		if items == nil {
+			resp.Error = fmt.Sprintf("failed to list %s, or unsupported kind", req.GetKind())
+		}
+		resp.Resources = items
+	}
+
+	if err := send(&agentv1.AgentMessage{
+		Payload: &agentv1.AgentMessage_ListResourcesResponse{ListResourcesResponse: resp},
+	}); err != nil {
+		log.Warn("failed to send list resources response", "error", err)
+	}
+}
+
+func sendHeartbeat(ctx context.Context, send func(*agentv1.AgentMessage) error, clusterID string, cfg Config, log *slog.Logger) error {
+	var info discovery.Info
+	if cfg.Clientset != nil {
+		info = discovery.GatherWith(ctx, cfg.Clientset)
+	}
+
 	status := agentv1.HealthStatus_HEALTH_STATUS_HEALTHY
 	if !info.Available {
 		status = agentv1.HealthStatus_HEALTH_STATUS_DEGRADED
@@ -96,7 +143,7 @@ func sendHeartbeat(ctx context.Context, stream agentv1.AgentService_ConnectClien
 
 	log.Info("sending heartbeat", "k8s_version", info.KubernetesVersion, "nodes", info.NodeCount, "discovery_available", info.Available)
 
-	return stream.Send(&agentv1.AgentMessage{
+	return send(&agentv1.AgentMessage{
 		Payload: &agentv1.AgentMessage_Heartbeat{
 			Heartbeat: &agentv1.Heartbeat{
 				ClusterId: clusterID,

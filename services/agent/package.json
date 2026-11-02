@@ -4,6 +4,7 @@
   "scripts": {
     "build": "go build -o bin/ ./...",
     "lint": "golangci-lint run --allow-parallel-runners ./...",
-    "test": "go test ./..."
+    "test": "go test ./...",
+    "dev": "until test -f ../../.dev/certs/agent-cert.pem; do sleep 0.5; done; KLYRO_CLUSTER_NAME=kind-klyro-dev go run ./cmd/agent"
   }
 }

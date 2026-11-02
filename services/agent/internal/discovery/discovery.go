@@ -20,22 +20,34 @@ type Info struct {
 	Available         bool
 }
 
-// Gather connects to the cluster named by kubeconfigPath (empty string uses
-// client-go's default loading rules: $KUBECONFIG, then ~/.kube/config) and
-// returns what it can discover. On any failure it returns a zero-value Info
-// with Available=false rather than erroring — a cluster not being reachable
-// yet is a normal state to report, not a crash.
-func Gather(ctx context.Context, kubeconfigPath string) Info {
+// NewClientset connects to the cluster named by kubeconfigPath (empty
+// string uses client-go's default loading rules: $KUBECONFIG, then
+// ~/.kube/config). Callers reuse the returned clientset for both
+// Capabilities gathering and resource listing rather than reconnecting
+// each time.
+func NewClientset(kubeconfigPath string) (*kubernetes.Clientset, error) {
 	cfg, err := loadConfig(kubeconfigPath)
 	if err != nil {
-		return Info{}
+		return nil, err
 	}
+	return kubernetes.NewForConfig(cfg)
+}
 
-	clientset, err := kubernetes.NewForConfig(cfg)
+// Gather connects to the cluster named by kubeconfigPath and returns what
+// it can discover. On any failure it returns a zero-value Info with
+// Available=false rather than erroring — a cluster not being reachable yet
+// is a normal state to report, not a crash.
+func Gather(ctx context.Context, kubeconfigPath string) Info {
+	clientset, err := NewClientset(kubeconfigPath)
 	if err != nil {
 		return Info{}
 	}
+	return GatherWith(ctx, clientset)
+}
 
+// GatherWith is Gather for a clientset the caller already built, so a
+// long-lived agent doesn't reconnect on every heartbeat.
+func GatherWith(ctx context.Context, clientset *kubernetes.Clientset) Info {
 	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 

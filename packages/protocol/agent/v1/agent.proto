@@ -18,6 +18,7 @@ message AgentMessage {
   oneof payload {
     RegisterRequest register = 1;
     Heartbeat heartbeat = 2;
+    ListResourcesResponse list_resources_response = 3;
   }
 }
 
@@ -25,6 +26,10 @@ message ServerMessage {
   oneof payload {
     RegisterAck register_ack = 1;
     HeartbeatAck heartbeat_ack = 2;
+    // Pushed DOWN the stream to the agent: the backend can never dial the
+    // agent directly, so a request/response pair rides the same connection
+    // the agent opened, correlated by request_id.
+    ListResourcesRequest list_resources_request = 3;
   }
 }
 
@@ -59,4 +64,28 @@ message Capabilities {
 
 message HeartbeatAck {
   int64 server_time_unix = 1;
+}
+
+// ListResourcesRequest asks the agent to list one kind of resource. Phase 6
+// covers the typed, built-in kinds below — the dynamic client for CRDs is
+// follow-up work.
+message ListResourcesRequest {
+  string request_id = 1;
+  string kind = 2;      // "Pod" | "Deployment" | "Service" | "Node"
+  string namespace = 3; // empty = all namespaces; ignored for cluster-scoped kinds (Node)
+}
+
+message ListResourcesResponse {
+  string request_id = 1;
+  string kind = 2;
+  repeated Resource resources = 3;
+  string error = 4; // set, with resources empty, when the agent-side list call failed
+}
+
+message Resource {
+  string name = 1;
+  string namespace = 2;
+  string status = 3; // short human status, e.g. "Running", "2/2 Ready"
+  string created_at = 4; // RFC3339
+  map<string, string> extra = 5; // kind-specific fields: pod restarts, node roles/version, ...
 }
