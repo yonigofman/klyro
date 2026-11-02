@@ -1,0 +1,9 @@
+{
+  "name": "@klyro/protocol",
+  "private": true,
+  "scripts": {
+    "build": "go build ./...",
+    "lint": "golangci-lint run --allow-parallel-runners ./...",
+    "test": "go test ./..."
+  }
+}

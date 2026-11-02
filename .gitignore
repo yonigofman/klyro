@@ -18,5 +18,8 @@ services/*/bin/
 .env.local
 *.local
 
+# Local dev-only artifacts (certs, etc.) — never commit real or dev credentials
+.dev/
+
 # OS / editor
 .DS_Store

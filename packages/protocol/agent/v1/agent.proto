@@ -1,0 +1,62 @@
+syntax = "proto3";
+
+package klyro.agent.v1;
+
+option go_package = "github.com/yonigofman/klyro/packages/protocol/agent/v1;agentv1";
+
+// AgentService is served by the Klyro backend (services/api) and called by
+// the Klyro cluster agent (services/agent), which dials out to the backend
+// over mTLS. The agent never receives inbound connections, per AGENTS.md's
+// cluster connectivity rules.
+service AgentService {
+  // Connect is a single bidirectional stream carrying registration and
+  // health/capability reporting for the lifetime of the agent's connection.
+  rpc Connect(stream AgentMessage) returns (stream ServerMessage);
+}
+
+message AgentMessage {
+  oneof payload {
+    RegisterRequest register = 1;
+    Heartbeat heartbeat = 2;
+  }
+}
+
+message ServerMessage {
+  oneof payload {
+    RegisterAck register_ack = 1;
+    HeartbeatAck heartbeat_ack = 2;
+  }
+}
+
+message RegisterRequest {
+  string cluster_name = 1;
+  string agent_version = 2;
+}
+
+message RegisterAck {
+  string cluster_id = 1;
+}
+
+message Heartbeat {
+  string cluster_id = 1;
+  HealthStatus status = 2;
+  Capabilities capabilities = 3;
+}
+
+enum HealthStatus {
+  HEALTH_STATUS_UNSPECIFIED = 0;
+  HEALTH_STATUS_HEALTHY = 1;
+  HEALTH_STATUS_DEGRADED = 2;
+}
+
+// Capabilities reports what the agent discovered about the cluster it runs
+// against. Node/version info only — resource discovery is Phase 6's job.
+message Capabilities {
+  string kubernetes_version = 1;
+  int32 node_count = 2;
+  bool discovery_available = 3;
+}
+
+message HeartbeatAck {
+  int64 server_time_unix = 1;
+}
