@@ -1,0 +1,22 @@
+# Dependencies
+node_modules/
+
+# Build outputs
+dist/
+.output/
+.vinxi/
+.tanstack/tmp/
+
+# Turborepo
+.turbo/
+
+# Go
+services/*/bin/
+
+# Env / local
+.env
+.env.local
+*.local
+
+# OS / editor
+.DS_Store

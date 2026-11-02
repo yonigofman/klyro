@@ -1,0 +1,238 @@
+/*
+ * Klyro design tokens, ported from the claude.ai/design "Klyro" design system
+ * (https://claude.ai/artifact/TGrACyXVKRZrV5DwwuCwvy, project/tokens.json).
+ *
+ * Dark is the primary/default theme; [data-theme="light"] overrides below.
+ * Spacing isn't re-themed here: Klyro's 4px grid (space-1=4px ... space-16=64px,
+ * plus the 0.5/1.5/2.5 half-steps) already matches Tailwind's default spacing
+ * scale 1:1, so p-4/gap-6/etc. map directly to the token values.
+ */
+
+@theme {
+  /* Color — dark (default) */
+  --color-canvas: #09090b;
+  --color-surface: #111113;
+  --color-surface-raised: #18181b;
+  --color-surface-overlay: #1e1e22;
+  --color-surface-hover: #232327;
+  --color-surface-active: #2b2b30;
+  --color-grid-dot: #26262b;
+  --color-line: #232327;
+  --color-line-strong: #3a3a41;
+  --color-line-control: #686871;
+  --color-ink: #ededee;
+  --color-ink-muted: #a1a1aa;
+  --color-ink-subtle: #84848e;
+  --color-ink-disabled: #55555d;
+  --color-volt: #c6f24e;
+  --color-volt-hover: #d4f773;
+  --color-volt-press: #b3dd3c;
+  --color-volt-ink: #c6f24e;
+  --color-volt-soft: #c6f24e17;
+  --color-volt-line: #c6f24e66;
+  --color-on-volt: #0b0d05;
+  --color-success: #3dd68c;
+  --color-success-soft: #3dd68c1a;
+  --color-warning: #f5b740;
+  --color-warning-soft: #f5b7401a;
+  --color-danger: #ff7a6b;
+  --color-danger-soft: #ff7a6b1a;
+  --color-danger-fill: #d93a3f;
+  --color-on-danger: #ffffff;
+  --color-info: #7cb7ff;
+  --color-info-soft: #7cb7ff1a;
+  --color-neutral-status: #8b8b94;
+  --color-chart-1: #7ba011;
+  --color-chart-2: #3295ee;
+  --color-chart-3: #d6629e;
+  --color-chart-4: #cd7b00;
+  --color-chart-5: #00a29c;
+  --color-chart-6: #9979e7;
+  --color-chart-grid: #232327;
+  --color-chart-threshold: #ff7a6b;
+  --color-code-key: #7cb7ff;
+  --color-code-string: #c6f24e;
+  --color-code-number: #f5b740;
+  --color-code-comment: #84848e;
+  --color-code-add: #3dd68c1f;
+  --color-code-remove: #ff7a6b1f;
+
+  /* Typography */
+  --font-display: 'Instrument Sans Condensed', 'Instrument Sans', ui-sans-serif, system-ui, sans-serif;
+  --font-sans: 'Instrument Sans', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+
+  /* Display group */
+  --text-hero: 64px;
+  --text-hero--line-height: 60px;
+  --text-hero--letter-spacing: -0.035em;
+  --text-hero--font-weight: 600;
+  --text-display: 40px;
+  --text-display--line-height: 40px;
+  --text-display--letter-spacing: -0.03em;
+  --text-display--font-weight: 600;
+  --text-title-lg: 26px;
+  --text-title-lg--line-height: 28px;
+  --text-title-lg--letter-spacing: -0.02em;
+  --text-title-lg--font-weight: 600;
+  --text-metric: 36px;
+  --text-metric--line-height: 36px;
+  --text-metric--letter-spacing: -0.02em;
+  --text-metric--font-weight: 500;
+  --text-metric-sm: 22px;
+  --text-metric-sm--line-height: 24px;
+  --text-metric-sm--letter-spacing: -0.01em;
+  --text-metric-sm--font-weight: 500;
+
+  /* Interface group */
+  --text-title: 16px;
+  --text-title--line-height: 22px;
+  --text-title--letter-spacing: -0.01em;
+  --text-title--font-weight: 600;
+  --text-heading: 14px;
+  --text-heading--line-height: 20px;
+  --text-heading--font-weight: 600;
+  --text-body-lg: 15px;
+  --text-body-lg--line-height: 24px;
+  --text-body-lg--font-weight: 400;
+  --text-body: 14px;
+  --text-body--line-height: 20px;
+  --text-body--font-weight: 400;
+  --text-ui: 13px;
+  --text-ui--line-height: 18px;
+  --text-ui--font-weight: 400;
+  --text-ui-strong: 13px;
+  --text-ui-strong--line-height: 18px;
+  --text-ui-strong--font-weight: 500;
+  --text-label: 12px;
+  --text-label--line-height: 16px;
+  --text-label--font-weight: 500;
+  --text-caption: 11px;
+  --text-caption--line-height: 14px;
+  --text-caption--letter-spacing: 0.06em;
+  --text-caption--font-weight: 600;
+
+  /* Technical group */
+  --text-code: 12.5px;
+  --text-code--line-height: 20px;
+  --text-code--font-weight: 400;
+  --text-mono-ui: 12px;
+  --text-mono-ui--line-height: 18px;
+  --text-mono-ui--font-weight: 400;
+  --text-mono-sm: 11px;
+  --text-mono-sm--line-height: 16px;
+  --text-mono-sm--font-weight: 500;
+
+  /* Radius — tight, machined corners; never pill-shaped buttons */
+  --radius-xs: 3px;
+  --radius-sm: 5px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+
+  /* Control / shell sizes */
+  --control-xs: 22px;
+  --control-sm: 26px;
+  --control-md: 30px;
+  --control-lg: 36px;
+  --row-height: 34px;
+  --topbar-height: 44px;
+  --sidebar-width: 232px;
+  --sidebar-collapsed: 52px;
+
+  /* Motion */
+  --duration-instant: 80ms;
+  --duration-fast: 140ms;
+  --duration-base: 220ms;
+  --duration-slow: 420ms;
+  --duration-pulse: 1600ms;
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+  --ease-in: cubic-bezier(0.7, 0, 0.84, 0);
+}
+
+/* Shadows and focus ring carry both theme values, so they live outside @theme as plain vars */
+:root,
+[data-theme='dark'] {
+  --shadow-sm: 0 1px 2px #00000066;
+  --shadow-md: 0 0 0 1px #ffffff0a, 0 8px 24px -4px #000000b3;
+  --shadow-lg: 0 0 0 1px #ffffff0f, 0 24px 64px -12px #000000d9;
+  --focus-ring: 0 0 0 2px #111113, 0 0 0 4px #c6f24e;
+}
+
+[data-theme='light'] {
+  --color-canvas: #f2f2f0;
+  --color-surface: #ffffff;
+  --color-surface-raised: #fafaf9;
+  --color-surface-overlay: #ffffff;
+  --color-surface-hover: #f0f0ee;
+  --color-surface-active: #e6e6e3;
+  --color-grid-dot: #dcdcd8;
+  --color-line: #e4e4e0;
+  --color-line-strong: #c9c9c4;
+  --color-line-control: #8a8a84;
+  --color-ink: #0e0e10;
+  --color-ink-muted: #56565c;
+  --color-ink-subtle: #6f6f76;
+  --color-ink-disabled: #a8a8a4;
+  --color-volt: #c6f24e;
+  --color-volt-hover: #b6e33a;
+  --color-volt-press: #a3cf2b;
+  --color-volt-ink: #466300;
+  --color-volt-soft: #c6f24e40;
+  --color-volt-line: #6f9312;
+  --color-on-volt: #0b0d05;
+  --color-success: #0f7a4f;
+  --color-success-soft: #0f7a4f14;
+  --color-warning: #925600;
+  --color-warning-soft: #92560014;
+  --color-danger: #c4291c;
+  --color-danger-soft: #c4291c12;
+  --color-danger-fill: #c4291c;
+  --color-on-danger: #ffffff;
+  --color-info: #1f5fbf;
+  --color-info-soft: #1f5fbf12;
+  --color-neutral-status: #6f6f76;
+  --color-chart-1: #618200;
+  --color-chart-2: #1577c8;
+  --color-chart-3: #b24981;
+  --color-chart-4: #aa6000;
+  --color-chart-5: #008e88;
+  --color-chart-6: #7c5ec2;
+  --color-chart-grid: #ebebe8;
+  --color-chart-threshold: #c4291c;
+  --color-code-key: #1f5fbf;
+  --color-code-string: #466300;
+  --color-code-number: #925600;
+  --color-code-comment: #6f6f76;
+  --color-code-add: #0f7a4f1a;
+  --color-code-remove: #c4291c14;
+
+  --shadow-sm: 0 1px 2px #0e0e100d, 0 1px 1px #0e0e100a;
+  --shadow-md: 0 0 0 1px #0e0e100f, 0 8px 24px -6px #0e0e1029;
+  --shadow-lg: 0 0 0 1px #0e0e100f, 0 24px 64px -16px #0e0e1040;
+  --focus-ring: 0 0 0 2px #ffffff, 0 0 0 4px #466300;
+}
+
+@font-face {
+  font-family: 'Instrument Sans';
+  src: url('/fonts/InstrumentSans-Variable.woff2') format('woff2');
+  font-weight: 400 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Instrument Sans Condensed';
+  src: url('/fonts/InstrumentSansCondensed-Variable.woff2') format('woff2');
+  font-weight: 400 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'JetBrains Mono';
+  src: url('/fonts/JetBrainsMono-Variable.woff2') format('woff2');
+  font-weight: 100 800;
+  font-style: normal;
+  font-display: swap;
+}
