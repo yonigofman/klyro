@@ -1,18 +1,17 @@
 import * as React from 'react'
 import { createFileRoute } from '@tanstack/react-router'
+import { Renderer } from '@openuidev/react-lang'
 
 import { AIMessage, UserMessage } from '#/components/ui/message'
-import { FindingCard } from '#/components/ui/finding-card'
 import { GeneratedPanel } from '#/components/ui/generated-panel'
 import type { TraceStep } from '#/components/ui/investigation-trace'
 import { InvestigationTrace } from '#/components/ui/investigation-trace'
+import { canvasLibrary } from '#/lib/openui-canvas'
 import { PromptInput } from '#/components/ui/prompt-input'
 import { SourceChip } from '#/components/ui/source-chip'
 import { SplitWorkspace } from '#/components/ui/split-workspace'
 import { SuggestedPrompts } from '#/components/ui/suggested-prompts'
 import { ToolCall } from '#/components/ui/tool-call'
-import type { TopoEdge, TopoNode } from '#/components/ui/topology-map'
-import { TopologyMap } from '#/components/ui/topology-map'
 import { BranchMark } from '#/components/ui/branch-mark'
 
 export const Route = createFileRoute('/_shell/ai-workspace')({ component: AIWorkspace })
@@ -75,22 +74,15 @@ const TOOL_STEPS: ToolStepDef[] = [
   },
 ]
 
-const TOPO_COLUMNS = ['Cluster', 'Namespace', 'Workload']
-const TOPO_NODES: TopoNode[] = [
-  { id: 'cluster', kind: 'Cluster', name: 'prod-us-east-1', status: 'warning', col: 0, row: 1 },
-  { id: 'ns-checkout', kind: 'Namespace', name: 'checkout', status: 'warning', col: 1, row: 0.5 },
-  { id: 'ns-payments', kind: 'Namespace', name: 'payments', status: 'healthy', col: 1, row: 2 },
-  { id: 'deploy-checkout-web', kind: 'Deployment', name: 'checkout-web', status: 'danger', col: 2, row: 0, focus: true },
-  { id: 'deploy-checkout-worker', kind: 'Deployment', name: 'checkout-worker', status: 'healthy', col: 2, row: 1 },
-  { id: 'deploy-payments-api', kind: 'Deployment', name: 'payments-api', status: 'healthy', col: 2, row: 2 },
-]
-const TOPO_EDGES: TopoEdge[] = [
-  { from: 'cluster', to: 'ns-checkout', tone: 'default' },
-  { from: 'cluster', to: 'ns-payments', tone: 'default' },
-  { from: 'ns-checkout', to: 'deploy-checkout-web', tone: 'danger' },
-  { from: 'ns-checkout', to: 'deploy-checkout-worker', tone: 'default' },
-  { from: 'ns-payments', to: 'deploy-payments-api', tone: 'default' },
-]
+// Fed to the real OpenUI renderer (canvasLibrary) as a canned, progressively
+// revealed program — the model writes this in Phase 7; here it's scripted.
+const CANVAS_PROGRAM = `root = Canvas([topology, finding])
+topology = Topology(columns, nodes, edges, "deploy-checkout-web")
+columns = ["Cluster", "Namespace", "Workload"]
+nodes = [{id: "cluster", kind: "Cluster", name: "prod-us-east-1", status: "warning", col: 0, row: 1}, {id: "ns-checkout", kind: "Namespace", name: "checkout", status: "warning", col: 1, row: 0.5}, {id: "ns-payments", kind: "Namespace", name: "payments", status: "healthy", col: 1, row: 2}, {id: "deploy-checkout-web", kind: "Deployment", name: "checkout-web", status: "danger", col: 2, row: 0, focus: true}, {id: "deploy-checkout-worker", kind: "Deployment", name: "checkout-worker", status: "healthy", col: 2, row: 1}, {id: "deploy-payments-api", kind: "Deployment", name: "payments-api", status: "healthy", col: 2, row: 2}]
+edges = [{from: "cluster", to: "ns-checkout", tone: "default"}, {from: "cluster", to: "ns-payments", tone: "default"}, {from: "ns-checkout", to: "deploy-checkout-web", tone: "danger"}, {from: "ns-checkout", to: "deploy-checkout-worker", tone: "default"}, {from: "ns-payments", to: "deploy-payments-api", tone: "default"}]
+finding = Finding(1, "Memory limit hit on every spike", "high", "danger", "checkout-web has been CrashLoopBackOff since the 2.14.0 rollout 47 minutes ago. Memory peaks at 498Mi against a 512Mi limit on every traffic spike.", evidence)
+evidence = [{n: 1, kind: "change", system: "ArgoCD", label: "checkout-web rev 47"}, {n: 2, kind: "metric", system: "Mimir", label: "memory_working_set"}, {n: 3, kind: "event", system: "kube", label: "9x BackOff"}]`
 
 type StepStatus = 'queued' | 'running' | 'success'
 type Phase = 'idle' | 'running' | 'done'
@@ -99,6 +91,7 @@ function AIWorkspace() {
   const [phase, setPhase] = React.useState<Phase>('idle')
   const [question, setQuestion] = React.useState('')
   const [statuses, setStatuses] = React.useState<Record<string, StepStatus>>({})
+  const [revealLen, setRevealLen] = React.useState(0)
   const timers = React.useRef<ReturnType<typeof setTimeout>[]>([])
 
   React.useEffect(() => {
@@ -113,9 +106,21 @@ function AIWorkspace() {
 
     setQuestion(prompt)
     setPhase('running')
+    setRevealLen(0)
     const initial: Record<string, StepStatus> = {}
     TOOL_STEPS.forEach((s) => (initial[s.id] = 'queued'))
     setStatuses(initial)
+
+    const totalMs = TOOL_STEPS.reduce((sum, s) => sum + s.durationMs, 0)
+    const CHUNKS = 24
+    for (let c = 1; c <= CHUNKS; c++) {
+      timers.current.push(
+        setTimeout(
+          () => setRevealLen(Math.round((CANVAS_PROGRAM.length * c) / CHUNKS)),
+          Math.round((totalMs * c) / CHUNKS),
+        ),
+      )
+    }
 
     let elapsed = 0
     TOOL_STEPS.forEach((step, i) => {
@@ -191,27 +196,11 @@ function AIWorkspace() {
               <p className="text-ui text-ink-muted">Ask a question to see the topology Klyro builds while it investigates.</p>
             </div>
           ) : (
-            <div className="flex flex-col gap-4">
-              <TopologyMap nodes={TOPO_NODES} edges={TOPO_EDGES} columns={TOPO_COLUMNS} selectedId="deploy-checkout-web" />
-              {phase === 'done' && (
-                <FindingCard
-                  n={1}
-                  title="Memory limit hit on every spike"
-                  confidence="high"
-                  tone="danger"
-                  evidence={
-                    <>
-                      <SourceChip n={1} kind="change" system="ArgoCD" label="checkout-web rev 47" />
-                      <SourceChip n={2} kind="metric" system="Mimir" label="memory_working_set" />
-                      <SourceChip n={3} kind="event" system="kube" label="9× BackOff" />
-                    </>
-                  }
-                >
-                  checkout-web has been CrashLoopBackOff since the 2.14.0 rollout 47 minutes ago. Memory peaks at
-                  498Mi against a 512Mi limit on every traffic spike.
-                </FindingCard>
-              )}
-            </div>
+            <Renderer
+              response={CANVAS_PROGRAM.slice(0, revealLen)}
+              library={canvasLibrary}
+              isStreaming={phase === 'running'}
+            />
           )}
         </GeneratedPanel>
       }
