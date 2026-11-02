@@ -9,50 +9,204 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as IndexRouteImport } from './routes/index'
+import { Route as ShellRouteImport } from './routes/_shell'
+import { Route as ShellIndexRouteImport } from './routes/_shell.index'
+import { Route as ShellAiWorkspaceRouteImport } from './routes/_shell.ai-workspace'
+import { Route as ShellClustersRouteImport } from './routes/_shell.clusters'
+import { Route as ShellInfrastructureRouteImport } from './routes/_shell.infrastructure'
+import { Route as ShellObservabilityRouteImport } from './routes/_shell.observability'
+import { Route as ShellOperationsRouteImport } from './routes/_shell.operations'
+import { Route as ShellSettingsRouteImport } from './routes/_shell.settings'
 
-const IndexRoute = IndexRouteImport.update({
+const ShellRoute = ShellRouteImport.update({
+  id: '/_shell',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ShellIndexRoute = ShellIndexRouteImport.update({
   id: '/',
   path: '/',
-  getParentRoute: () => rootRouteImport,
+  getParentRoute: () => ShellRoute,
+} as any)
+const ShellAiWorkspaceRoute = ShellAiWorkspaceRouteImport.update({
+  id: '/ai-workspace',
+  path: '/ai-workspace',
+  getParentRoute: () => ShellRoute,
+} as any)
+const ShellClustersRoute = ShellClustersRouteImport.update({
+  id: '/clusters',
+  path: '/clusters',
+  getParentRoute: () => ShellRoute,
+} as any)
+const ShellInfrastructureRoute = ShellInfrastructureRouteImport.update({
+  id: '/infrastructure',
+  path: '/infrastructure',
+  getParentRoute: () => ShellRoute,
+} as any)
+const ShellObservabilityRoute = ShellObservabilityRouteImport.update({
+  id: '/observability',
+  path: '/observability',
+  getParentRoute: () => ShellRoute,
+} as any)
+const ShellOperationsRoute = ShellOperationsRouteImport.update({
+  id: '/operations',
+  path: '/operations',
+  getParentRoute: () => ShellRoute,
+} as any)
+const ShellSettingsRoute = ShellSettingsRouteImport.update({
+  id: '/settings',
+  path: '/settings',
+  getParentRoute: () => ShellRoute,
 } as any)
 
 export interface FileRoutesByFullPath {
-  '/': typeof IndexRoute
+  '/': typeof ShellIndexRoute
+  '/ai-workspace': typeof ShellAiWorkspaceRoute
+  '/clusters': typeof ShellClustersRoute
+  '/infrastructure': typeof ShellInfrastructureRoute
+  '/observability': typeof ShellObservabilityRoute
+  '/operations': typeof ShellOperationsRoute
+  '/settings': typeof ShellSettingsRoute
 }
 export interface FileRoutesByTo {
-  '/': typeof IndexRoute
+  '/ai-workspace': typeof ShellAiWorkspaceRoute
+  '/clusters': typeof ShellClustersRoute
+  '/infrastructure': typeof ShellInfrastructureRoute
+  '/observability': typeof ShellObservabilityRoute
+  '/operations': typeof ShellOperationsRoute
+  '/settings': typeof ShellSettingsRoute
+  '/': typeof ShellIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
-  '/': typeof IndexRoute
+  '/_shell': typeof ShellRouteWithChildren
+  '/_shell/ai-workspace': typeof ShellAiWorkspaceRoute
+  '/_shell/clusters': typeof ShellClustersRoute
+  '/_shell/infrastructure': typeof ShellInfrastructureRoute
+  '/_shell/observability': typeof ShellObservabilityRoute
+  '/_shell/operations': typeof ShellOperationsRoute
+  '/_shell/settings': typeof ShellSettingsRoute
+  '/_shell/': typeof ShellIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/'
+  fullPaths:
+    | '/'
+    | '/ai-workspace'
+    | '/clusters'
+    | '/infrastructure'
+    | '/observability'
+    | '/operations'
+    | '/settings'
   fileRoutesByTo: FileRoutesByTo
-  to: '/'
-  id: '__root__' | '/'
+  to:
+    | '/ai-workspace'
+    | '/clusters'
+    | '/infrastructure'
+    | '/observability'
+    | '/operations'
+    | '/settings'
+    | '/'
+  id:
+    | '__root__'
+    | '/_shell'
+    | '/_shell/ai-workspace'
+    | '/_shell/clusters'
+    | '/_shell/infrastructure'
+    | '/_shell/observability'
+    | '/_shell/operations'
+    | '/_shell/settings'
+    | '/_shell/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
-  IndexRoute: typeof IndexRoute
+  ShellRoute: typeof ShellRouteWithChildren
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/': {
-      id: '/'
+    '/_shell': {
+      id: '/_shell'
+      path: ''
+      fullPath: '/'
+      preLoaderRoute: typeof ShellRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/_shell/': {
+      id: '/_shell/'
       path: '/'
       fullPath: '/'
-      preLoaderRoute: typeof IndexRouteImport
-      parentRoute: typeof rootRouteImport
+      preLoaderRoute: typeof ShellIndexRouteImport
+      parentRoute: typeof ShellRoute
+    }
+    '/_shell/ai-workspace': {
+      id: '/_shell/ai-workspace'
+      path: '/ai-workspace'
+      fullPath: '/ai-workspace'
+      preLoaderRoute: typeof ShellAiWorkspaceRouteImport
+      parentRoute: typeof ShellRoute
+    }
+    '/_shell/clusters': {
+      id: '/_shell/clusters'
+      path: '/clusters'
+      fullPath: '/clusters'
+      preLoaderRoute: typeof ShellClustersRouteImport
+      parentRoute: typeof ShellRoute
+    }
+    '/_shell/infrastructure': {
+      id: '/_shell/infrastructure'
+      path: '/infrastructure'
+      fullPath: '/infrastructure'
+      preLoaderRoute: typeof ShellInfrastructureRouteImport
+      parentRoute: typeof ShellRoute
+    }
+    '/_shell/observability': {
+      id: '/_shell/observability'
+      path: '/observability'
+      fullPath: '/observability'
+      preLoaderRoute: typeof ShellObservabilityRouteImport
+      parentRoute: typeof ShellRoute
+    }
+    '/_shell/operations': {
+      id: '/_shell/operations'
+      path: '/operations'
+      fullPath: '/operations'
+      preLoaderRoute: typeof ShellOperationsRouteImport
+      parentRoute: typeof ShellRoute
+    }
+    '/_shell/settings': {
+      id: '/_shell/settings'
+      path: '/settings'
+      fullPath: '/settings'
+      preLoaderRoute: typeof ShellSettingsRouteImport
+      parentRoute: typeof ShellRoute
     }
   }
 }
 
+interface ShellRouteChildren {
+  ShellAiWorkspaceRoute: typeof ShellAiWorkspaceRoute
+  ShellClustersRoute: typeof ShellClustersRoute
+  ShellInfrastructureRoute: typeof ShellInfrastructureRoute
+  ShellObservabilityRoute: typeof ShellObservabilityRoute
+  ShellOperationsRoute: typeof ShellOperationsRoute
+  ShellSettingsRoute: typeof ShellSettingsRoute
+  ShellIndexRoute: typeof ShellIndexRoute
+}
+
+const ShellRouteChildren: ShellRouteChildren = {
+  ShellAiWorkspaceRoute: ShellAiWorkspaceRoute,
+  ShellClustersRoute: ShellClustersRoute,
+  ShellInfrastructureRoute: ShellInfrastructureRoute,
+  ShellObservabilityRoute: ShellObservabilityRoute,
+  ShellOperationsRoute: ShellOperationsRoute,
+  ShellSettingsRoute: ShellSettingsRoute,
+  ShellIndexRoute: ShellIndexRoute,
+}
+
+const ShellRouteWithChildren = ShellRoute._addFileChildren(ShellRouteChildren)
+
 const rootRouteChildren: RootRouteChildren = {
-  IndexRoute: IndexRoute,
+  ShellRoute: ShellRouteWithChildren,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
